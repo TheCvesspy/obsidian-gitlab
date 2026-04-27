@@ -1,0 +1,71 @@
+/* Move Files Modal */
+.gitlab-move-modal .gitlab-move-selected-list {
+	max-height: 160px;
+	overflow-y: auto;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	padding: 4px 0;
+	margin-bottom: 8px;
+	background-color: var(--background-secondary);
+}
+
+.gitlab-move-selected-row {
+	display: flex;
+	align-items: center;
+	padding: 2px 8px;
+	gap: 8px;
+}
+
+.gitlab-move-selected-row:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.gitlab-move-selected-path {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-family: var(--font-monospace);
+	font-size: 0.9em;
+}
+
+.gitlab-move-remove-btn {
+	background: transparent;
+	border: none;
+	color: var(--text-muted);
+	cursor: pointer;
+	padding: 0 4px;
+	font-size: 0.9em;
+}
+
+.gitlab-move-remove-btn:hover {
+	color: var(--text-error);
+}
+
+.gitlab-move-modal .gitlab-move-addrow {
+	margin-bottom: 12px;
+}
+
+.gitlab-move-modal .gitlab-move-dest-label {
+	margin-bottom: 6px;
+	font-family: var(--font-monospace);
+	font-size: 0.9em;
+	color: var(--text-muted);
+}
+
+.gitlab-move-modal .gitlab-move-rename-row {
+	margin-top: 8px;
+}
+
+.gitlab-move-rename-input {
+	width: 100%;
+}
+
+.gitlab-tree-move-btn {
+	margin-left: 4px;
+	opacity: 0.6;
+}
+
+.gitlab-tree-move-btn:hover {
+	opacity: 1;
+}

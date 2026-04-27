@@ -1,0 +1,35 @@
+/* Ignore patterns textarea in repository modal */
+.gitlab-ignore-textarea {
+	width: 100%;
+	min-height: 100px;
+	padding: 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background-color: var(--background-primary);
+	color: var(--text-normal);
+	font-family: var(--font-monospace);
+	font-size: 0.85em;
+	resize: vertical;
+	margin-bottom: 10px;
+}
+
+.gitlab-commit-button {
+	width: 100%;
+	padding: 8px;
+	background-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	font-weight: 500;
+	transition: opacity 0.2s;
+}
+
+.gitlab-commit-button:hover {
+	opacity: 0.9;
+}
+
+.gitlab-commit-button:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}

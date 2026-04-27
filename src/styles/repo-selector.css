@@ -1,0 +1,15 @@
+
+/* Repository Selector */
+.gitlab-repo-selector {
+	margin-bottom: 12px;
+}
+
+.gitlab-repo-selector select {
+	width: 100%;
+	padding: 6px 10px;
+	border-radius: 4px;
+	border: 1px solid var(--background-modifier-border);
+	background-color: var(--background-primary);
+	color: var(--text-normal);
+	font-size: 0.9em;
+}

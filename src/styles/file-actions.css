@@ -1,0 +1,22 @@
+/* ===== File clickable + action buttons ===== */
+.gitlab-file-clickable {
+	cursor: pointer;
+	text-decoration: none;
+}
+
+.gitlab-file-clickable:hover {
+	text-decoration: underline;
+	color: var(--text-accent);
+}
+
+.gitlab-file-action-btn {
+	cursor: pointer;
+	font-size: 0.8em;
+	opacity: 0.5;
+	padding: 0 2px;
+	flex-shrink: 0;
+}
+
+.gitlab-file-action-btn:hover {
+	opacity: 1;
+}

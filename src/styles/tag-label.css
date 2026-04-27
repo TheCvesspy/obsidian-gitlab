@@ -1,0 +1,4 @@
+/* ===== Tag label in graph ===== */
+.gitlab-graph-branch-label {
+	white-space: nowrap;
+}

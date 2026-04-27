@@ -1,0 +1,23 @@
+/* ===== Info Icon & Help System ===== */
+.gitlab-section-header-with-help {
+display: flex;
+align-items: center;
+gap: 6px;
+}
+
+.gitlab-info-icon {
+cursor: pointer;
+opacity: 0.5;
+font-size: 0.85em;
+transition: opacity 0.2s;
+user-select: none;
+}
+
+.gitlab-info-icon:hover {
+opacity: 1;
+}
+
+.gitlab-help-modal .gitlab-help-text {
+line-height: 1.6;
+margin: 6px 0;
+}

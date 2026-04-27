@@ -1,0 +1,86 @@
+/* Branch Section */
+.gitlab-branch-section {
+	margin-bottom: 12px;
+}
+
+.gitlab-branch-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.gitlab-branch-select {
+	flex: 1;
+	padding: 6px 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background-color: var(--background-primary);
+	color: var(--text-normal);
+	font-family: var(--font-monospace);
+	font-size: 0.85em;
+	cursor: pointer;
+}
+
+.gitlab-branch-current {
+	display: flex;
+	align-items: center;
+	padding: 8px;
+	background-color: var(--background-secondary);
+	border-radius: 4px;
+	margin-bottom: 8px;
+}
+
+.gitlab-branch-icon {
+	margin-right: 8px;
+}
+
+.gitlab-branch-name {
+	font-weight: 500;
+	font-family: var(--font-monospace);
+}
+
+.gitlab-branch-list {
+	max-height: 200px;
+	overflow-y: auto;
+}
+
+.gitlab-branch-item {
+	padding: 6px 10px;
+	cursor: pointer;
+	border-radius: 4px;
+	transition: background-color 0.2s;
+}
+
+.gitlab-branch-item:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+/* Orphaned branch styles */
+.gitlab-branch-orphaned {
+	opacity: 0.7;
+	font-style: italic;
+}
+
+.gitlab-delete-branch-btn {
+	color: var(--text-error);
+}
+
+.gitlab-branch-delete-btn {
+	background: none;
+	border: none;
+	cursor: pointer;
+	padding: 2px 6px;
+	font-size: 12px;
+	opacity: 0.7;
+	margin-left: auto;
+}
+
+.gitlab-branch-delete-btn:hover {
+	opacity: 1;
+}
+
+.gitlab-qa-branch-item {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}

@@ -1,0 +1,31 @@
+/* ===== Guide Modal ===== */
+.gitlab-guide-modal {
+max-width: 700px;
+}
+
+.gitlab-guide-content h1 {
+border-bottom: 1px solid var(--background-modifier-border);
+padding-bottom: 6px;
+margin-top: 16px;
+}
+
+.gitlab-guide-content h2 {
+margin-top: 14px;
+}
+
+.gitlab-guide-content pre {
+background: var(--background-secondary);
+padding: 8px;
+border-radius: 4px;
+overflow-x: auto;
+}
+
+.gitlab-guide-content li {
+margin-left: 16px;
+}
+
+.gitlab-guide-table-row {
+font-family: var(--font-monospace);
+font-size: 0.85em;
+white-space: pre;
+}

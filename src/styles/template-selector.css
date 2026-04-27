@@ -1,0 +1,23 @@
+/* ===== Template Selector ===== */
+.gitlab-template-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 6px;
+}
+
+.gitlab-template-label {
+	font-size: 0.85em;
+	color: var(--text-muted);
+	flex-shrink: 0;
+}
+
+.gitlab-template-select {
+	flex: 1;
+	padding: 3px 6px;
+	border-radius: 4px;
+	font-size: 0.85em;
+	background: var(--background-primary);
+	color: var(--text-normal);
+	border: 1px solid var(--background-modifier-border);
+}

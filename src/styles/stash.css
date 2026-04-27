@@ -1,0 +1,106 @@
+/* ===== Stash Section ===== */
+.gitlab-stash-section,
+.gitlab-tag-section {
+	margin-top: 12px;
+	margin-bottom: 12px;
+	padding-top: 8px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.gitlab-section-header-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-bottom: 6px;
+	padding: 2px 0;
+}
+
+.gitlab-section-header-row h4 {
+	margin: 0;
+	flex: 1;
+	font-size: 0.95em;
+}
+
+.gitlab-small-button {
+	padding: 3px 10px;
+	font-size: 0.8em;
+	border-radius: 4px;
+	cursor: pointer;
+	border: 1px solid var(--background-modifier-border);
+	background-color: var(--background-primary);
+	color: var(--text-normal);
+	transition: background-color 0.15s;
+}
+
+.gitlab-small-button:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.gitlab-tiny-button {
+	padding: 2px 8px;
+	font-size: 0.75em;
+	border-radius: 4px;
+	cursor: pointer;
+	border: 1px solid var(--background-modifier-border);
+	background-color: var(--background-primary);
+	color: var(--text-normal);
+	transition: background-color 0.15s;
+}
+
+.gitlab-tiny-button:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.gitlab-tiny-danger {
+	color: var(--text-error);
+	border-color: var(--text-error);
+}
+
+.gitlab-tiny-danger:hover {
+	background-color: var(--text-error);
+	color: var(--text-on-accent);
+}
+
+.gitlab-danger-button {
+	color: var(--text-error);
+	border-color: var(--text-error);
+	margin-top: 6px;
+}
+
+.gitlab-danger-button:hover {
+	background-color: var(--text-error);
+	color: var(--text-on-accent);
+}
+
+.gitlab-stash-list {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin-top: 4px;
+}
+
+.gitlab-stash-entry {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 4px 8px;
+	border-radius: 4px;
+	background: var(--background-secondary);
+	font-size: 0.85em;
+}
+
+.gitlab-stash-msg {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-family: var(--font-monospace);
+	font-size: 0.9em;
+}
+
+.gitlab-stash-actions {
+	display: flex;
+	gap: 4px;
+	flex-shrink: 0;
+}

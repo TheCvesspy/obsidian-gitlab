@@ -1,0 +1,28 @@
+/* ===== MR Modal ===== */
+.gitlab-mr-modal {
+	max-width: 600px;
+}
+
+.gitlab-mr-modal h2 {
+	margin-top: 0;
+}
+
+.gitlab-mr-description {
+	width: 100%;
+	min-height: 100px;
+	font-family: var(--font-monospace);
+	font-size: 0.9em;
+	padding: 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-primary);
+	color: var(--text-normal);
+	resize: vertical;
+}
+
+.gitlab-mr-buttons {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-top: 16px;
+}

@@ -1,0 +1,106 @@
+/* Repository File Browser */
+.gitlab-browser-section {
+	margin-top: 12px;
+	border-top: 1px solid var(--background-modifier-border);
+	padding-top: 10px;
+}
+
+.gitlab-browser-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	cursor: pointer;
+	user-select: none;
+}
+
+.gitlab-browser-header h4 {
+	margin: 0;
+	flex: 1;
+}
+
+.gitlab-browser-toggle {
+	font-size: 0.8em;
+	width: 16px;
+	text-align: center;
+}
+
+.gitlab-add-file-btn {
+	font-size: 0.75em;
+	padding: 2px 8px !important;
+}
+
+.gitlab-browser-content {
+	margin-top: 8px;
+	max-height: 400px;
+	overflow-y: auto;
+}
+
+.gitlab-browser-collapsed {
+	display: none;
+}
+
+.gitlab-tree-row {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 2px 4px;
+	border-radius: 3px;
+	font-size: 0.85em;
+	cursor: pointer;
+}
+
+.gitlab-tree-row:hover {
+	background: var(--background-modifier-hover);
+}
+
+.gitlab-tree-folder-row {
+	font-weight: 500;
+}
+
+.gitlab-tree-toggle {
+	font-size: 0.7em;
+	width: 12px;
+	text-align: center;
+	flex-shrink: 0;
+}
+
+.gitlab-tree-icon {
+	flex-shrink: 0;
+	font-size: 0.9em;
+}
+
+.gitlab-tree-name {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.gitlab-tree-size {
+	font-size: 0.75em;
+	color: var(--text-muted);
+	flex-shrink: 0;
+}
+
+.gitlab-tree-children.gitlab-tree-collapsed {
+	display: none;
+}
+
+/* Tree file status colors */
+.gitlab-tree-modified {
+	color: var(--text-warning) !important;
+}
+
+.gitlab-tree-added {
+	color: var(--text-success) !important;
+}
+
+.gitlab-tree-deleted {
+	color: var(--text-error) !important;
+	text-decoration: line-through;
+}
+
+.gitlab-tree-untracked {
+	color: var(--text-success) !important;
+	font-style: italic;
+}

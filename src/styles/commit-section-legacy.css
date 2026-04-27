@@ -1,0 +1,64 @@
+/* Commit Section */
+.gitlab-commit-section {
+	margin-bottom: 12px;
+	padding: 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+}
+
+.gitlab-jira-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 8px;
+}
+
+.gitlab-jira-label {
+	font-size: 0.85em;
+	font-weight: 500;
+	white-space: nowrap;
+	color: var(--text-muted);
+}
+
+.gitlab-jira-input {
+	flex: 1;
+	padding: 4px 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background-color: var(--background-primary);
+	color: var(--text-normal);
+	font-family: var(--font-monospace);
+	font-size: 0.85em;
+}
+
+.gitlab-commit-preview {
+	margin-bottom: 8px;
+	padding: 6px 8px;
+	background: var(--background-secondary);
+	border-radius: 4px;
+	font-size: 0.8em;
+	border-left: 3px solid var(--interactive-accent);
+}
+
+.gitlab-commit-preview-label {
+	color: var(--text-muted);
+	font-weight: 500;
+}
+
+.gitlab-commit-preview-text {
+	color: var(--text-accent);
+	font-family: var(--font-monospace);
+}
+
+.gitlab-commit-message {
+	width: 100%;
+	min-height: 80px;
+	padding: 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background-color: var(--background-primary);
+	color: var(--text-normal);
+	font-family: var(--font-text);
+	resize: vertical;
+	margin-bottom: 10px;
+}

@@ -1,0 +1,59 @@
+/* Upload Files Modal */
+.gitlab-upload-modal .gitlab-upload-filecount {
+	margin: 4px 0 12px 0;
+	font-size: 0.9em;
+	color: var(--text-muted);
+}
+
+.gitlab-upload-modal .gitlab-upload-dest-label {
+	margin-bottom: 6px;
+	font-family: var(--font-monospace);
+	font-size: 0.9em;
+	color: var(--text-muted);
+}
+
+.gitlab-upload-tree {
+	max-height: 240px;
+	overflow-y: auto;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	padding: 4px 0;
+	margin-bottom: 12px;
+	background-color: var(--background-secondary);
+}
+
+.gitlab-upload-tree-row {
+	display: flex;
+	align-items: center;
+	padding: 2px 8px;
+	cursor: pointer;
+	user-select: none;
+}
+
+.gitlab-upload-tree-row:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.gitlab-upload-tree-row.is-selected {
+	background-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.gitlab-upload-tree-chevron {
+	width: 14px;
+	text-align: center;
+	margin-right: 4px;
+	font-size: 0.75em;
+	color: var(--text-muted);
+}
+
+.gitlab-upload-tree-row.is-selected .gitlab-upload-tree-chevron {
+	color: var(--text-on-accent);
+}
+
+.gitlab-upload-tree-label {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}

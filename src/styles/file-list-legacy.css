@@ -1,0 +1,35 @@
+/* File List */
+.gitlab-file-list {
+	margin-bottom: 12px;
+	max-height: 300px;
+	overflow-y: auto;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+}
+
+.gitlab-file-item {
+	display: flex;
+	align-items: center;
+	padding: 6px 10px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	cursor: pointer;
+	transition: background-color 0.2s;
+}
+
+.gitlab-file-item:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.gitlab-file-item:last-child {
+	border-bottom: none;
+}
+
+.gitlab-file-checkbox {
+	margin-right: 10px;
+}
+
+.gitlab-file-name {
+	flex: 1;
+	font-family: var(--font-monospace);
+	font-size: 0.9em;
+}

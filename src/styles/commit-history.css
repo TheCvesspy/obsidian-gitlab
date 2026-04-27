@@ -1,0 +1,39 @@
+/* Commit History */
+.gitlab-history-list {
+	max-height: 300px;
+	overflow-y: auto;
+}
+
+.gitlab-commit-item {
+	padding: 10px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	cursor: pointer;
+	transition: background-color 0.2s;
+}
+
+.gitlab-commit-item:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.gitlab-commit-item:last-child {
+	border-bottom: none;
+}
+
+.gitlab-commit-message-text {
+	font-weight: 500;
+	margin-bottom: 5px;
+}
+
+.gitlab-commit-meta {
+	display: flex;
+	gap: 10px;
+	font-size: 0.85em;
+	color: var(--text-muted);
+}
+
+.gitlab-commit-sha {
+	font-family: var(--font-monospace);
+	background-color: var(--background-secondary);
+	padding: 2px 4px;
+	border-radius: 3px;
+}

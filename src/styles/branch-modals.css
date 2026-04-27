@@ -1,0 +1,35 @@
+/* Branch modals */
+.gitlab-branch-list {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin-top: 10px;
+}
+
+.gitlab-branch-list-item {
+	padding: 8px 12px;
+	cursor: pointer;
+	border-radius: 4px;
+	text-align: left;
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+}
+
+.gitlab-branch-list-item:hover {
+	background: var(--background-modifier-hover);
+}
+
+.gitlab-branch-create {
+	display: flex;
+	gap: 8px;
+	margin-top: 10px;
+}
+
+.gitlab-branch-input {
+	flex: 1;
+	padding: 6px 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-primary);
+	color: var(--text-normal);
+}

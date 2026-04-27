@@ -1,0 +1,161 @@
+/* ===== Conflict Resolution View ===== */
+.gitlab-conflict-container {
+	padding: 0;
+	overflow-y: auto;
+}
+
+.gitlab-conflict-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 12px 16px;
+	background: var(--background-secondary);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.gitlab-conflict-header h3 {
+	margin: 0;
+}
+
+.gitlab-conflict-progress {
+	font-size: 0.85em;
+	color: var(--text-muted);
+}
+
+.gitlab-conflict-empty {
+	padding: 40px;
+	text-align: center;
+	color: var(--text-muted);
+}
+
+.gitlab-conflict-file-tabs {
+	display: flex;
+	gap: 4px;
+	padding: 8px 16px;
+	overflow-x: auto;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.gitlab-conflict-file-tab {
+	padding: 4px 12px;
+	border-radius: 4px;
+	font-size: 0.85em;
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.gitlab-conflict-file-tab.active {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.gitlab-conflict-file-tab.resolved {
+	opacity: 0.7;
+}
+
+.gitlab-conflict-resolved-msg {
+	padding: 40px;
+	text-align: center;
+	color: var(--text-muted);
+}
+
+.gitlab-conflict-section {
+	padding: 16px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.gitlab-conflict-section-title {
+	margin: 0 0 12px 0;
+	font-size: 0.9em;
+	color: var(--text-muted);
+}
+
+.gitlab-conflict-panes {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 12px;
+	margin-bottom: 12px;
+}
+
+.gitlab-conflict-pane {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	overflow: hidden;
+}
+
+.gitlab-conflict-pane-header {
+	padding: 6px 12px;
+	font-size: 0.85em;
+	font-weight: 600;
+	background: var(--background-secondary);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.gitlab-conflict-ours .gitlab-conflict-pane-header {
+	color: var(--text-success);
+}
+
+.gitlab-conflict-theirs .gitlab-conflict-pane-header {
+	color: var(--text-warning);
+}
+
+.gitlab-conflict-pane-content {
+	padding: 8px 12px;
+	font-family: var(--font-monospace);
+	font-size: 0.85em;
+	line-height: 1.4;
+	margin: 0;
+	white-space: pre-wrap;
+	max-height: 300px;
+	overflow-y: auto;
+}
+
+.gitlab-conflict-actions {
+	display: flex;
+	gap: 8px;
+	justify-content: center;
+}
+
+.gitlab-conflict-btn {
+	padding: 6px 16px;
+	border-radius: 4px;
+	cursor: pointer;
+	font-size: 0.85em;
+}
+
+.gitlab-conflict-btn-ours {
+	color: var(--text-success);
+	border-color: var(--text-success);
+}
+
+.gitlab-conflict-btn-theirs {
+	color: var(--text-warning);
+	border-color: var(--text-warning);
+}
+
+.gitlab-conflict-btn-both {
+	color: var(--text-accent);
+	border-color: var(--interactive-accent);
+}
+
+.gitlab-conflict-bottom-bar {
+	padding: 16px;
+	text-align: center;
+	border-top: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+}
+
+.gitlab-conflict-apply-btn {
+	padding: 8px 24px;
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	font-weight: 600;
+}
+
+.gitlab-conflict-hint {
+	color: var(--text-muted);
+	font-size: 0.85em;
+}

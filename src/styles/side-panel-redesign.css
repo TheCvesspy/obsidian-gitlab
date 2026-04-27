@@ -1,0 +1,218 @@
+/* ============================================================
+ * Redesigned side panel: sticky HeaderBar + Tabs
+ * ============================================================ */
+
+/* Make the panel a flex column so the header sticks while the body scrolls. */
+.gitlab-panel {
+display: flex;
+flex-direction: column;
+padding: 0;
+overflow: hidden;
+}
+
+/* ---- HeaderBar -------------------------------------------------- */
+.gitlab-headerbar {
+flex: 0 0 auto;
+position: sticky;
+top: 0;
+z-index: 5;
+background: var(--background-primary);
+border-bottom: 1px solid var(--background-modifier-border);
+padding: 6px 8px;
+display: flex;
+flex-direction: column;
+gap: 4px;
+}
+
+.gitlab-headerbar-row {
+display: flex;
+align-items: center;
+gap: 6px;
+min-width: 0;
+}
+
+.gitlab-headerbar-row-1 .gitlab-headerbar-repo {
+display: flex;
+align-items: center;
+gap: 6px;
+flex: 1 1 auto;
+min-width: 0;
+}
+
+.gitlab-headerbar-logo {
+display: inline-flex;
+color: var(--interactive-accent);
+flex: 0 0 auto;
+}
+.gitlab-headerbar-logo svg { width: 18px; height: 18px; }
+
+.gitlab-headerbar-repo-select {
+flex: 1 1 auto;
+min-width: 0;
+background: var(--background-secondary);
+border: 1px solid var(--background-modifier-border);
+color: var(--text-normal);
+font-weight: 600;
+padding: 4px 6px;
+border-radius: 4px;
+}
+
+.gitlab-headerbar-empty {
+flex: 1;
+color: var(--text-muted);
+font-style: italic;
+font-size: 0.9em;
+}
+
+.gitlab-headerbar-globals,
+.gitlab-headerbar-actions {
+display: flex;
+align-items: center;
+gap: 2px;
+flex: 0 0 auto;
+}
+
+.gitlab-headerbar-row-2 .gitlab-headerbar-branch {
+display: flex;
+align-items: center;
+gap: 4px;
+flex: 1 1 auto;
+min-width: 0;
+}
+
+.gitlab-headerbar-branch-icon {
+display: inline-flex;
+color: var(--text-muted);
+}
+.gitlab-headerbar-branch-icon svg { width: 14px; height: 14px; }
+
+.gitlab-headerbar-branch-select {
+flex: 1 1 auto;
+min-width: 0;
+background: var(--background-secondary);
+border: 1px solid var(--background-modifier-border);
+color: var(--text-normal);
+padding: 3px 6px;
+border-radius: 4px;
+font-size: 0.9em;
+}
+
+.gitlab-headerbar-badges {
+display: flex;
+gap: 4px;
+flex: 0 0 auto;
+}
+
+.gitlab-headerbar-badge {
+font-size: 0.78em;
+font-weight: 600;
+padding: 1px 6px;
+border-radius: 10px;
+background: var(--background-modifier-border);
+color: var(--text-muted);
+white-space: nowrap;
+}
+.gitlab-headerbar-badge-ahead    { background: var(--interactive-accent); color: var(--text-on-accent); }
+.gitlab-headerbar-badge-behind   { background: var(--text-warning, #c97a00); color: var(--text-on-accent); }
+.gitlab-headerbar-badge-uptodate { background: transparent; color: var(--text-success, var(--text-muted)); padding: 1px 4px; }
+
+/* Icon buttons in the header */
+.gitlab-headerbar-iconbtn {
+display: inline-flex;
+align-items: center;
+justify-content: center;
+width: 26px;
+height: 26px;
+padding: 0;
+border: 1px solid transparent;
+background: transparent;
+border-radius: 4px;
+color: var(--text-normal);
+cursor: pointer;
+transition: background-color 0.12s, border-color 0.12s;
+}
+.gitlab-headerbar-iconbtn:hover:not(:disabled) {
+background: var(--background-modifier-hover);
+border-color: var(--background-modifier-border);
+}
+.gitlab-headerbar-iconbtn:disabled {
+opacity: 0.4;
+cursor: not-allowed;
+}
+.gitlab-headerbar-iconbtn.is-highlight {
+color: var(--interactive-accent);
+}
+.gitlab-headerbar-iconbtn.is-danger:hover:not(:disabled) {
+color: var(--text-error);
+}
+.gitlab-headerbar-iconbtn-icon { display: inline-flex; }
+.gitlab-headerbar-iconbtn-icon svg { width: 16px; height: 16px; }
+
+/* ---- Tabs ------------------------------------------------------- */
+.gitlab-tabs {
+flex: 1 1 auto;
+display: flex;
+flex-direction: column;
+min-height: 0;
+}
+
+.gitlab-tabs-strip {
+display: flex;
+flex-wrap: nowrap;
+overflow-x: auto;
+border-bottom: 1px solid var(--background-modifier-border);
+background: var(--background-primary);
+position: sticky;
+top: 0;
+z-index: 4;
+}
+.gitlab-tabs-strip::-webkit-scrollbar { height: 0; }
+
+.gitlab-tab {
+display: inline-flex;
+align-items: center;
+gap: 5px;
+padding: 7px 10px;
+background: transparent;
+border: none;
+border-bottom: 2px solid transparent;
+color: var(--text-muted);
+cursor: pointer;
+font-size: 0.85em;
+white-space: nowrap;
+transition: color 0.12s, border-color 0.12s, background-color 0.12s;
+}
+.gitlab-tab:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
+.gitlab-tab.is-active {
+color: var(--text-normal);
+border-bottom-color: var(--interactive-accent);
+font-weight: 600;
+}
+
+.gitlab-tab-icon { display: inline-flex; }
+.gitlab-tab-icon svg { width: 14px; height: 14px; }
+
+.gitlab-tab-badge {
+font-size: 0.72em;
+font-weight: 600;
+padding: 0 5px;
+border-radius: 8px;
+background: var(--background-modifier-border);
+color: var(--text-normal);
+min-width: 16px;
+text-align: center;
+}
+.gitlab-tab.is-active .gitlab-tab-badge {
+background: var(--interactive-accent);
+color: var(--text-on-accent);
+}
+
+/* Narrow-width auto-collapse: hide labels, keep icons (and badge). */
+.gitlab-tabs.gitlab-tabs-narrow .gitlab-tab-label { display: none; }
+.gitlab-tabs.gitlab-tabs-narrow .gitlab-tab { padding: 7px 8px; }
+
+.gitlab-tab-body {
+flex: 1 1 auto;
+overflow-y: auto;
+padding: 10px;
+}

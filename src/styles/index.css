@@ -1,0 +1,36 @@
+/* GitLab Plugin Styles — bundled by esbuild from src/styles/. */
+/* Edit per-surface modules; do not hand-edit the generated styles.css. */
+@import "./base.css";
+@import "./repo-selector.css";
+@import "./status.css";
+@import "./file-list-legacy.css";
+@import "./commit-section-legacy.css";
+@import "./repository-modal.css";
+@import "./branches-legacy.css";
+@import "./sync-status.css";
+@import "./action-buttons-legacy.css";
+@import "./conflict-resolution-inline.css";
+@import "./loading.css";
+@import "./file-explorer.css";
+@import "./repo-browser.css";
+@import "./branch-modals.css";
+@import "./commit-history.css";
+@import "./git-graph.css";
+@import "./diff-view.css";
+@import "./file-history-view.css";
+@import "./conflict-resolution-view.css";
+@import "./mr-modal.css";
+@import "./file-actions.css";
+@import "./stash.css";
+@import "./tags.css";
+@import "./template-selector.css";
+@import "./tag-label.css";
+@import "./info-help.css";
+@import "./guide-modal.css";
+@import "./collapsible.css";
+@import "./quick-commit-modal.css";
+@import "./quick-action-modal.css";
+@import "./upload-files-modal.css";
+@import "./move-files-modal.css";
+@import "./side-panel-redesign.css";
+@import "./changes-tab.css";

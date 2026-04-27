@@ -1,0 +1,120 @@
+/* ===== Diff View ===== */
+.gitlab-diff-container {
+	padding: 0;
+	overflow-y: auto;
+}
+
+.gitlab-diff-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 12px 16px;
+	background: var(--background-secondary);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.gitlab-diff-filepath {
+	font-weight: bold;
+	font-family: var(--font-monospace);
+	font-size: 0.95em;
+}
+
+.gitlab-diff-stats {
+	margin-left: auto;
+	display: flex;
+	gap: 8px;
+}
+
+.gitlab-diff-stat-add {
+	color: var(--text-success);
+	font-weight: bold;
+	font-family: var(--font-monospace);
+}
+
+.gitlab-diff-stat-remove {
+	color: var(--text-error);
+	font-weight: bold;
+	font-family: var(--font-monospace);
+}
+
+.gitlab-diff-labels {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 16px;
+	font-size: 0.85em;
+	color: var(--text-muted);
+	background: var(--background-secondary-alt);
+}
+
+.gitlab-diff-label-old {
+	color: var(--text-error);
+}
+
+.gitlab-diff-label-new {
+	color: var(--text-success);
+}
+
+.gitlab-diff-body {
+	padding: 0;
+}
+
+.gitlab-diff-empty {
+	padding: 40px;
+	text-align: center;
+	color: var(--text-muted);
+}
+
+.gitlab-diff-hunk {
+	margin-bottom: 2px;
+}
+
+.gitlab-diff-hunk-header {
+	background: var(--background-secondary);
+	padding: 4px 16px;
+	font-family: var(--font-monospace);
+	font-size: 0.85em;
+	color: var(--text-muted);
+	border-top: 1px solid var(--background-modifier-border);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.gitlab-diff-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-family: var(--font-monospace);
+	font-size: 0.85em;
+	line-height: 1.4;
+}
+
+.gitlab-diff-line-add {
+	background: rgba(40, 167, 69, 0.15);
+}
+
+.gitlab-diff-line-remove {
+	background: rgba(220, 53, 69, 0.15);
+}
+
+.gitlab-diff-linenum {
+	width: 50px;
+	min-width: 50px;
+	text-align: right;
+	padding: 0 8px;
+	color: var(--text-faint);
+	user-select: none;
+	border-right: 1px solid var(--background-modifier-border);
+}
+
+.gitlab-diff-marker {
+	width: 20px;
+	text-align: center;
+	padding: 0 4px;
+	color: var(--text-muted);
+	user-select: none;
+}
+
+.gitlab-diff-content {
+	padding: 0 8px;
+	white-space: pre-wrap;
+	word-break: break-all;
+}

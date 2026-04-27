@@ -1,0 +1,31 @@
+/* Action Buttons */
+.gitlab-actions {
+	display: flex;
+	gap: 6px;
+	margin-bottom: 12px;
+	flex-wrap: wrap;
+}
+
+.gitlab-action-button {
+	flex: 1;
+	padding: 6px 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background-color: var(--background-primary);
+	color: var(--text-normal);
+	cursor: pointer;
+	font-size: 0.85em;
+	transition: background-color 0.15s;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.gitlab-action-button:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.gitlab-action-button:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}

@@ -1,0 +1,26 @@
+/* ===== Collapsible Sections ===== */
+.gitlab-section-header-clickable {
+cursor: pointer;
+user-select: none;
+}
+
+.gitlab-section-header-clickable:hover {
+background: var(--background-modifier-hover);
+border-radius: 4px;
+}
+
+.gitlab-section-toggle {
+font-size: 0.75em;
+width: 14px;
+text-align: center;
+flex-shrink: 0;
+opacity: 0.6;
+}
+
+.gitlab-section-content {
+/* Smooth transition is tricky with auto height, so just toggle display */
+}
+
+.gitlab-section-collapsed {
+display: none;
+}

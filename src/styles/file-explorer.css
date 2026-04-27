@@ -1,0 +1,131 @@
+/* File Explorer Decorations */
+.nav-file-title[data-gitlab-status]::after {
+	content: attr(data-gitlab-status);
+	margin-left: 5px;
+	font-size: 0.75em;
+	padding: 1px 4px;
+	border-radius: 2px;
+}
+
+.nav-file-title[data-gitlab-status="M"]::after {
+	background-color: var(--text-warning);
+	color: var(--text-on-accent);
+}
+
+.nav-file-title[data-gitlab-status="A"]::after {
+	background-color: var(--text-success);
+	color: var(--text-on-accent);
+}
+
+.nav-file-title[data-gitlab-status="D"]::after {
+	background-color: var(--text-error);
+	color: var(--text-on-accent);
+}
+
+.nav-file-title[data-gitlab-status="U"]::after {
+	background-color: var(--text-muted);
+	color: var(--text-on-accent);
+}
+
+.nav-file-title[data-gitlab-status="R"]::after {
+	background-color: var(--text-accent);
+	color: var(--text-on-accent);
+}
+
+.nav-file-title[data-gitlab-status="C"]::after {
+	background-color: var(--text-error);
+	color: var(--text-on-accent);
+	animation: gitlab-pulse 1.5s infinite;
+}
+
+/* VS Code-like file name coloring */
+.nav-file-title.gitlab-explorer-modified .nav-file-title-content {
+	color: var(--text-warning);
+}
+
+.nav-file-title.gitlab-explorer-added .nav-file-title-content {
+	color: var(--text-success);
+}
+
+.nav-file-title.gitlab-explorer-deleted .nav-file-title-content {
+	color: var(--text-error);
+	text-decoration: line-through;
+	opacity: 0.7;
+}
+
+.nav-file-title.gitlab-explorer-untracked .nav-file-title-content {
+	color: var(--text-success);
+}
+
+.nav-file-title.gitlab-explorer-renamed .nav-file-title-content {
+	color: var(--text-accent);
+}
+
+.nav-file-title.gitlab-explorer-conflicted .nav-file-title-content {
+	color: var(--text-error);
+	font-weight: 600;
+}
+
+/* Folder status coloring — subtle tint on folder names */
+.nav-folder-title.gitlab-explorer-modified > .nav-folder-title-content {
+	color: var(--text-warning);
+}
+
+.nav-folder-title.gitlab-explorer-added > .nav-folder-title-content {
+	color: var(--text-success);
+}
+
+.nav-folder-title.gitlab-explorer-deleted > .nav-folder-title-content {
+	color: var(--text-error);
+}
+
+.nav-folder-title.gitlab-explorer-untracked > .nav-folder-title-content {
+	color: var(--text-success);
+}
+
+.nav-folder-title.gitlab-explorer-conflicted > .nav-folder-title-content {
+	color: var(--text-error);
+	font-weight: 600;
+}
+
+/* Folder badge (small dot indicator instead of letter) */
+.nav-folder-title[data-gitlab-status]::after {
+	content: '';
+	display: inline-block;
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	margin-left: 6px;
+	vertical-align: middle;
+}
+
+.nav-folder-title[data-gitlab-status="M"]::after {
+	background-color: var(--text-warning);
+}
+
+.nav-folder-title[data-gitlab-status="A"]::after,
+.nav-folder-title[data-gitlab-status="U"]::after {
+	background-color: var(--text-success);
+}
+
+.nav-folder-title[data-gitlab-status="D"]::after {
+	background-color: var(--text-error);
+}
+
+.nav-folder-title[data-gitlab-status="C"]::after {
+	background-color: var(--text-error);
+	animation: gitlab-pulse 1.5s infinite;
+}
+
+/* Repo root folder marker */
+.nav-folder-title[data-gitlab-repo]::before {
+	content: '⎇';
+	margin-right: 4px;
+	font-size: 0.9em;
+	opacity: 0.7;
+}
+
+@keyframes gitlab-pulse {
+	0%, 100% { opacity: 1; }
+	50% { opacity: 0.4; }
+}

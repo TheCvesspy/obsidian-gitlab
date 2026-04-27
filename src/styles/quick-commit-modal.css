@@ -1,0 +1,145 @@
+/* Quick Commit Modal */
+.gitlab-quick-commit-modal {
+	max-width: 600px;
+}
+
+.gitlab-quick-commit-modal h2,
+.gitlab-quick-action-modal h2 {
+	margin: 0 0 12px 0;
+	font-size: 1.2em;
+}
+
+.gitlab-qc-row {
+	margin-bottom: 10px;
+}
+
+.gitlab-qc-label {
+	display: block;
+	font-size: 0.85em;
+	font-weight: 600;
+	margin-bottom: 4px;
+	color: var(--text-muted);
+}
+
+.gitlab-qc-select,
+.gitlab-qc-input {
+	width: 100%;
+	padding: 6px 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background-color: var(--background-primary);
+	color: var(--text-normal);
+	font-size: 0.9em;
+}
+
+.gitlab-qc-textarea {
+	width: 100%;
+	padding: 8px 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background-color: var(--background-primary);
+	color: var(--text-normal);
+	font-family: inherit;
+	font-size: 0.9em;
+	resize: vertical;
+}
+
+.gitlab-qc-files-container {
+	margin-bottom: 10px;
+}
+
+.gitlab-qc-files-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 6px;
+}
+
+.gitlab-qc-files-title {
+	flex: 1;
+	font-weight: 600;
+	font-size: 0.9em;
+}
+
+.gitlab-qc-btn-small {
+	padding: 2px 8px;
+	font-size: 0.75em;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background-color: var(--background-primary);
+	color: var(--text-normal);
+	cursor: pointer;
+}
+
+.gitlab-qc-btn-small:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.gitlab-qc-file-list {
+	max-height: 200px;
+	overflow-y: auto;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+}
+
+.gitlab-qc-file-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 8px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	font-size: 0.85em;
+}
+
+.gitlab-qc-file-item:last-child {
+	border-bottom: none;
+}
+
+.gitlab-qc-file-path {
+	flex: 1;
+	font-family: var(--font-monospace);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.gitlab-qc-buttons {
+	display: flex;
+	gap: 8px;
+	margin-top: 12px;
+	justify-content: flex-end;
+}
+
+.gitlab-qc-btn {
+	padding: 6px 16px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background-color: var(--background-primary);
+	color: var(--text-normal);
+	cursor: pointer;
+	font-size: 0.9em;
+}
+
+.gitlab-qc-btn:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.gitlab-qc-btn-primary {
+	background-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border-color: var(--interactive-accent);
+}
+
+.gitlab-qc-btn-primary:hover {
+	opacity: 0.9;
+}
+
+.gitlab-qc-btn-accent {
+	background-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border-color: var(--interactive-accent);
+}
+
+.gitlab-qc-btn-accent:hover {
+	opacity: 0.9;
+}

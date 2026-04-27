@@ -1,0 +1,35 @@
+/* Status Indicators */
+.gitlab-status-badge {
+	display: inline-block;
+	padding: 2px 6px;
+	border-radius: 4px;
+	font-size: 0.8em;
+	font-weight: 500;
+	margin-left: 5px;
+}
+
+.gitlab-status-modified {
+	background-color: var(--text-warning);
+	color: var(--text-on-accent);
+}
+
+.gitlab-status-added {
+	background-color: var(--text-success);
+	color: var(--text-on-accent);
+}
+
+.gitlab-status-deleted {
+	background-color: var(--text-error);
+	color: var(--text-on-accent);
+}
+
+.gitlab-status-conflicted {
+	background-color: var(--text-error);
+	color: var(--text-on-accent);
+	animation: pulse 1.5s ease-in-out infinite;
+}
+
+.gitlab-status-untracked {
+	background-color: var(--text-muted);
+	color: var(--text-on-accent);
+}

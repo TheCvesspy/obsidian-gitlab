@@ -1,0 +1,23 @@
+/* Sync Status */
+.gitlab-sync-status {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 8px 10px;
+	background-color: var(--background-secondary);
+	border-radius: 4px;
+	margin-bottom: 12px;
+	font-size: 0.85em;
+}
+
+.gitlab-sync-ahead {
+	color: var(--text-success);
+}
+
+.gitlab-sync-behind {
+	color: var(--text-warning);
+}
+
+.gitlab-sync-uptodate {
+	color: var(--text-success);
+}
