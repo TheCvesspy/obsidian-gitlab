@@ -72,7 +72,7 @@ gap: 2px;
 flex: 0 0 auto;
 }
 
-.gitlab-headerbar-row-2 .gitlab-headerbar-branch {
+.gitlab-headerbar-branch {
 display: flex;
 align-items: center;
 gap: 4px;

@@ -3,7 +3,8 @@
  *
  * Layout:
  *   Row 1: [Repo dropdown ▾]                           [+] [⟳]
- *   Row 2: ⎇ branch ▾   ↓N ↑N   [Pull] [Push] [Fetch]  [⋯]
+ *   Row 2: ⎇ branch ▾
+ *   Row 3: ↓N ↑N   [Pull] [Push] [Fetch] [+branch]    [⋯]
  *   (orphan banner is rendered by the caller below the header when needed)
  *
  * This component owns rendering only — all behavior is supplied by the caller
@@ -48,7 +49,8 @@ export function renderHeaderBar(container: HTMLElement, opts: HeaderBarOptions):
 
 	renderRow1(root, opts);
 	if (opts.state) {
-		renderRow2(root, opts);
+		renderRow2Branch(root, opts);
+		renderRow3Actions(root, opts);
 	}
 
 	return root;
@@ -95,7 +97,7 @@ function renderRow1(root: HTMLElement, opts: HeaderBarOptions): void {
 	});
 }
 
-function renderRow2(root: HTMLElement, opts: HeaderBarOptions): void {
+function renderRow2Branch(root: HTMLElement, opts: HeaderBarOptions): void {
 	const state = opts.state!;
 	const row = root.createDiv({ cls: 'gitlab-headerbar-row gitlab-headerbar-row-2' });
 
@@ -124,6 +126,11 @@ function renderRow2(root: HTMLElement, opts: HeaderBarOptions): void {
 			void opts.callbacks.onSwitchBranch(target);
 		}
 	});
+}
+
+function renderRow3Actions(root: HTMLElement, opts: HeaderBarOptions): void {
+	const state = opts.state!;
+	const row = root.createDiv({ cls: 'gitlab-headerbar-row gitlab-headerbar-row-3' });
 
 	// Sync badges
 	const badges = row.createDiv({ cls: 'gitlab-headerbar-badges' });
