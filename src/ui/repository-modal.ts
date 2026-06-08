@@ -1,10 +1,13 @@
 import { App, Modal, Setting, Notice } from 'obsidian';
 import { SubTreeConfig } from '../types';
-import { 
-	validateRepositoryConfig, 
+import {
+	validateRepositoryConfig,
 	generateRepositoryId,
-	extractRepoNameFromUrl 
+	extractRepoNameFromUrl
 } from '../utils/validators';
+import type { IGitBackend } from '../api/git-backend';
+import { SparseTreePickerModal } from './sparse-tree-picker-modal';
+import { isJunctionSupported } from '../utils/junction-utils';
 
 /**
  * Modal for adding or editing a repository configuration
@@ -13,11 +16,15 @@ export class RepositoryConfigModal extends Modal {
 	private config: Partial<SubTreeConfig>;
 	private onSubmit: (config: SubTreeConfig) => void;
 	private isEdit: boolean;
+	private gitCliAvailable: boolean;
+	private getGitOps: ((repoId: string) => IGitBackend | undefined) | null;
 
 	constructor(
 		app: App,
 		existingConfig: Partial<SubTreeConfig> | null,
-		onSubmit: (config: SubTreeConfig) => void
+		onSubmit: (config: SubTreeConfig) => void,
+		gitCliAvailable = false,
+		getGitOps: ((repoId: string) => IGitBackend | undefined) | null = null,
 	) {
 		super(app);
 		this.isEdit = existingConfig !== null;
@@ -26,6 +33,8 @@ export class RepositoryConfigModal extends Modal {
 			currentBranch: 'main'
 		};
 		this.onSubmit = onSubmit;
+		this.gitCliAvailable = gitCliAvailable;
+		this.getGitOps = getGitOps;
 	}
 
 	onOpen() {
@@ -213,6 +222,220 @@ export class RepositoryConfigModal extends Modal {
 					}
 				}));
 
+		// Forward declaration so the sparse textarea's onInput can refresh
+		// the hidden-clone alias list when the user adds/removes sparse paths.
+		let refreshHiddenCloneUi: (() => void) | null = null;
+
+		// Sparse checkout section
+		contentEl.createEl('h3', { text: 'Sparse checkout' });
+
+		if (this.gitCliAvailable) {
+			const sparseDesc = contentEl.createEl('p', {
+				text: 'Check out only specific directories from the repository. Other files remain in Git but are not downloaded to your vault.',
+			});
+			sparseDesc.style.fontSize = '0.85em';
+			sparseDesc.style.opacity = '0.8';
+
+			const sparseCfg = (this.config.sparseCheckout ||= { enabled: false, paths: [] });
+
+			new Setting(contentEl)
+				.setName('Enable sparse checkout')
+				.setDesc('Only check out selected directories (cone mode)')
+				.addToggle(toggle => toggle
+					.setValue(sparseCfg.enabled)
+					.onChange(value => {
+						sparseCfg.enabled = value;
+						sparsePathsContainer.style.display = value ? 'block' : 'none';
+					}));
+
+			const sparsePathsContainer = contentEl.createDiv();
+			sparsePathsContainer.style.display = sparseCfg.enabled ? 'block' : 'none';
+
+			const sparsePathsHeader = sparsePathsContainer.createDiv();
+			sparsePathsHeader.style.display = 'flex';
+			sparsePathsHeader.style.justifyContent = 'space-between';
+			sparsePathsHeader.style.alignItems = 'center';
+			sparsePathsHeader.style.marginBottom = '4px';
+
+			const sparsePathsLabel = sparsePathsHeader.createDiv();
+			sparsePathsLabel.createEl('div', {
+				text: 'Included paths',
+				cls: 'setting-item-name',
+			});
+			sparsePathsLabel.createEl('div', {
+				text: 'Directories to include (one per line, relative to repo root)',
+				cls: 'setting-item-description',
+			});
+
+			const browseBtn = sparsePathsHeader.createEl('button', { text: 'Browse…' });
+			browseBtn.style.marginLeft = '8px';
+
+			const sparseTextarea = sparsePathsContainer.createEl('textarea', {
+				cls: 'gitlab-ignore-textarea',
+				placeholder: 'docs/cs/analysis\nassets/images',
+			});
+			sparseTextarea.value = (sparseCfg.paths || []).join('\n');
+			sparseTextarea.addEventListener('input', () => {
+				sparseCfg.paths = sparseTextarea.value
+					.split('\n')
+					.map(l => l.trim().replace(/\\/g, '/'))
+					.filter(l => l.length > 0 && !l.startsWith('#'));
+				// Re-render junction aliases section so it reflects the new sparse paths
+				if (refreshHiddenCloneUi) refreshHiddenCloneUi();
+			});
+
+			browseBtn.addEventListener('click', () => {
+				// Validate we have what we need
+				if (!this.config.repositoryUrl || !this.config.token) {
+					new Notice('Set the repository URL and token before browsing the tree.');
+					return;
+				}
+
+				// Build a minimal SubTreeConfig snapshot for the picker
+				const repoForPicker: SubTreeConfig = {
+					id: this.config.id || 'temp',
+					name: this.config.name || 'Repository',
+					localPath: this.config.localPath || '',
+					repositoryUrl: this.config.repositoryUrl,
+					token: this.config.token,
+					currentBranch: this.config.currentBranch || 'main',
+					enabled: true,
+					disableSslVerification: this.config.disableSslVerification,
+					ignorePatterns: this.config.ignorePatterns,
+				};
+
+				const gitOps = (this.getGitOps && this.config.id)
+					? this.getGitOps(this.config.id)
+					: undefined;
+
+				const picker = new SparseTreePickerModal(
+					this.app,
+					repoForPicker,
+					gitOps,
+					sparseCfg.paths || [],
+					(paths) => {
+						sparseCfg.paths = paths;
+						sparseTextarea.value = paths.join('\n');
+					},
+				);
+				picker.open();
+			});
+		} else {
+			const unavailable = contentEl.createEl('p', {
+				text: 'Sparse checkout unavailable — Git CLI not found on your system. Install Git to enable this feature.',
+			});
+			unavailable.style.fontSize = '0.85em';
+			unavailable.style.opacity = '0.6';
+			unavailable.style.fontStyle = 'italic';
+		}
+
+		// Hidden clone & junctions section (Windows only, requires sparse checkout)
+		contentEl.createEl('h3', { text: 'Hidden clone & junctions' });
+
+		if (!isJunctionSupported()) {
+			const note = contentEl.createEl('p', {
+				text: 'Hidden clone mode requires Windows (uses directory junctions). Unavailable on this platform.',
+			});
+			note.style.fontSize = '0.85em';
+			note.style.opacity = '0.6';
+			note.style.fontStyle = 'italic';
+		} else if (!this.gitCliAvailable) {
+			const note = contentEl.createEl('p', {
+				text: 'Hidden clone mode requires the Git CLI backend (and sparse checkout).',
+			});
+			note.style.fontSize = '0.85em';
+			note.style.opacity = '0.6';
+			note.style.fontStyle = 'italic';
+		} else {
+			const hcDesc = contentEl.createEl('p', {
+				text: 'Move the clone to a hidden vault folder and expose each sparse path as a directory junction at a custom vault location. Useful for documentation repos where the deep clone path is noisy.',
+			});
+			hcDesc.style.fontSize = '0.85em';
+			hcDesc.style.opacity = '0.8';
+
+			const hcCfg = (this.config.hiddenClone ||= { enabled: false, cloneFolder: '', aliases: {} });
+			const sparseCfg = this.config.sparseCheckout || { enabled: false, paths: [] };
+
+			const enableSetting = new Setting(contentEl)
+				.setName('Enable hidden clone with junctions')
+				.setDesc('On save, the clone moves to a hidden folder and junctions are created for each sparse path.')
+				.addToggle(toggle => toggle
+					.setValue(hcCfg.enabled)
+					.setDisabled(!sparseCfg.enabled || (sparseCfg.paths || []).length === 0)
+					.onChange(value => {
+						hcCfg.enabled = value;
+						if (refreshHiddenCloneUi) refreshHiddenCloneUi();
+					}));
+
+			if (!sparseCfg.enabled || (sparseCfg.paths || []).length === 0) {
+				const hint = contentEl.createEl('p', {
+					text: 'Enable sparse checkout with at least one path above to use this feature.',
+				});
+				hint.style.fontSize = '0.8em';
+				hint.style.opacity = '0.6';
+				hint.style.marginLeft = '4px';
+			}
+
+			// Container for the rest of the hidden-clone UI (clone folder + aliases)
+			const hcContainer = contentEl.createDiv();
+
+			refreshHiddenCloneUi = () => {
+				hcContainer.empty();
+				if (!hcCfg.enabled) return;
+
+				new Setting(hcContainer)
+					.setName('Hidden clone folder')
+					.setDesc('Vault-relative folder where the clone lives. Leave blank to use the default (.gitlab-clones/<repo-id>).')
+					.addText(text => text
+						.setPlaceholder(`.gitlab-clones/${this.config.id || '<repo-id>'}`)
+						.setValue(hcCfg.cloneFolder || '')
+						.onChange(value => {
+							hcCfg.cloneFolder = value.trim();
+						}));
+
+				const aliasHeader = hcContainer.createEl('h4', { text: 'Junction aliases' });
+				aliasHeader.style.marginBottom = '4px';
+				const aliasDesc = hcContainer.createEl('p', {
+					text: 'Where each sparse path should appear in your vault.',
+				});
+				aliasDesc.style.fontSize = '0.8em';
+				aliasDesc.style.opacity = '0.7';
+				aliasDesc.style.marginTop = '0';
+
+				const sparsePaths = sparseCfg.paths || [];
+				if (sparsePaths.length === 0) {
+					const empty = hcContainer.createEl('p', {
+						text: '(No sparse paths configured yet — add some above.)',
+					});
+					empty.style.opacity = '0.6';
+					empty.style.fontStyle = 'italic';
+					return;
+				}
+
+				for (const sparsePath of sparsePaths) {
+					const defaultAlias = `${(this.config.localPath || '').replace(/[/\\]+$/, '')}/${sparsePath.split('/').pop() || sparsePath}`.replace(/^\/+/, '');
+					if (!hcCfg.aliases[sparsePath]) hcCfg.aliases[sparsePath] = defaultAlias;
+					new Setting(hcContainer)
+						.setName(sparsePath)
+						.setDesc('Vault-relative junction path')
+						.addText(text => text
+							.setValue(hcCfg.aliases[sparsePath])
+							.setPlaceholder(defaultAlias)
+							.onChange(value => {
+								hcCfg.aliases[sparsePath] = value.trim().replace(/\\/g, '/');
+							}));
+				}
+
+				// Prune orphan aliases (sparse path no longer exists)
+				const sparseSet = new Set(sparsePaths);
+				for (const key of Object.keys(hcCfg.aliases)) {
+					if (!sparseSet.has(key)) delete hcCfg.aliases[key];
+				}
+			};
+
+			refreshHiddenCloneUi();
+		}
+
 		// Buttons
 		const buttonContainer = contentEl.createDiv({ cls: 'modal-button-container' });
 		buttonContainer.style.display = 'flex';
@@ -263,6 +486,8 @@ export class RepositoryConfigModal extends Modal {
 			disableSslVerification: this.config.disableSslVerification ?? false,
 			ignorePatterns: this.config.ignorePatterns || [],
 			gitlabPagesCompat: this.config.gitlabPagesCompat,
+			sparseCheckout: this.config.sparseCheckout,
+			hiddenClone: this.config.hiddenClone,
 		};
 
 		this.onSubmit(completeConfig);

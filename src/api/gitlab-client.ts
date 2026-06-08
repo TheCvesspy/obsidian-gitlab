@@ -142,6 +142,44 @@ export class GitLabClient {
 	}
 
 	/**
+	 * List all directories in the repository at a given ref using the
+	 * GitLab Tree API. Paginates through all results. Recursive walk —
+	 * returns POSIX paths of every directory in the repo.
+	 */
+	async listRepositoryFolders(
+		projectId: number,
+		ref?: string,
+	): Promise<string[]> {
+		const folders = new Set<string>();
+		let page = 1;
+		const perPage = 100;
+
+		while (true) {
+			const refQuery = ref ? `&ref=${encodeURIComponent(ref)}` : '';
+			const endpoint = `/projects/${projectId}/repository/tree?recursive=true&per_page=${perPage}&page=${page}${refQuery}&pagination=keyset`;
+			const entries = await this.apiRequest<Array<{
+				type: 'tree' | 'blob';
+				path: string;
+				name: string;
+			}>>('GET', endpoint);
+
+			if (!Array.isArray(entries) || entries.length === 0) break;
+
+			for (const entry of entries) {
+				if (entry.type === 'tree') {
+					folders.add(entry.path);
+				}
+			}
+
+			if (entries.length < perPage) break;
+			page++;
+			if (page > 100) break; // safety cap (10,000 entries)
+		}
+
+		return Array.from(folders).sort();
+	}
+
+	/**
 	 * Create a merge request
 	 */
 	async createMergeRequest(projectId: number, params: MergeRequestParams): Promise<MergeRequestResult> {

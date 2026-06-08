@@ -7,6 +7,7 @@
 1. **Obsidian** installed on your computer
 2. **GitLab account** with repository access
 3. **Personal Access Token** from GitLab with repository permissions
+4. **Optional but recommended**: **Git CLI** installed (`git --version` ≥ 2.25). Without it the plugin works via the built-in isomorphic-git, but sparse checkout and hidden-clone aliases require Git CLI.
 
 ### Installation
 
@@ -180,6 +181,40 @@ Vault Structure:
 
 - New local branches show a **"⬆ Publish"** button instead of "Push"
 - Click Publish to push the branch to remote for the first time
+
+## ✂️ Sparse Checkout (large repos)
+
+When your repo is large but you only care about a few folders (e.g. your team's docs in a monorepo):
+
+1. Edit the repository in settings
+2. Scroll to **Sparse checkout** → toggle **Enable sparse checkout**
+3. Click **Browse…** to open the folder picker, OR type paths directly (one per line, repo-root-relative):
+   ```
+   docs/cs/analysis
+   docs/assets
+   ```
+4. Save — only those folders appear in your vault
+
+The plugin uses Git's cone-mode sparse checkout internally. Branch switches and pulls respect your selection automatically.
+
+> Requires Git CLI installed. The settings tab shows "Git backend: CLI" when active.
+
+## 🗂️ Hidden Clone with Mirror Aliases (Windows)
+
+When the sparse checkout path is still nested deeper than you'd like (e.g. `Dokumentace/PnB/pv-documentation/docs/cs/analysis/`), this mode hides the clone and surfaces each sparse path at a clean vault location:
+
+1. Make sure sparse checkout is enabled (above)
+2. Scroll to **Hidden clone & junctions** → toggle on
+3. For each sparse path, set its **alias** — the vault location you want to see:
+   ```
+   docs/cs/analysis  →  Dokumentace/PnB - analysis
+   docs/assets       →  Dokumentace/PnB - assets
+   ```
+4. Save
+
+On save, the plugin moves your clone into `.gitlab-clones/<repo-id>/` (hidden by Obsidian's default behaviour) and creates **NTFS hard-link mirrors** at each alias path. Files at the aliases share the same inode as the clone files — editing through the alias path updates the git-tracked file transparently.
+
+Useful for documentation repos where the deep clone path adds noise to your file tree.
 
 ## 🔍 File Status Indicators
 

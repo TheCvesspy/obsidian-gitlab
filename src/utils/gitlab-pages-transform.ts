@@ -79,7 +79,27 @@ function withCodeProtected(text: string, fn: (s: string) => string): string {
 // ---------- image discovery (pure, used by the move pipeline) ----------
 
 /**
- * Walk the markdown and return the unique list of image link names that
+ * Kind of image reference discovered in the markdown.
+ *
+ *   'embed' — Obsidian wiki-style embed `![[name]]`. The link name is a
+ *             vault-wide identifier (basename or vault-relative path),
+ *             so a missing dest is a real authoring error and the
+ *             pipeline should hard-fail.
+ *
+ *   'md'    — standard markdown image link `![](path)`. The path is
+ *             relative to the source md file (or already vault-relative);
+ *             Obsidian's metadataCache lookup can legitimately miss it
+ *             when the user wrote a correct relative path by hand. The
+ *             pipeline should leave such links alone, matching the pass-2
+ *             transform behavior.
+ */
+export interface CollectedImageRef {
+	name: string;
+	kind: 'embed' | 'md';
+}
+
+/**
+ * Walk the markdown and return the unique list of image references that
  * point at vault-local files (i.e. not external URLs). Both Obsidian
  * embeds (`![[name]]`) and standard markdown images (`![](name)`) are
  * scanned. Code fences and inline code are skipped via `withCodeProtected`.
@@ -88,15 +108,19 @@ function withCodeProtected(text: string, fn: (s: string) => string): string {
  * into the repo *before* running the actual transform pass. The function
  * is pure and lives here so it can be unit-tested in isolation.
  */
-export function collectImageLinkNames(md: string): string[] {
-	const seen = new Set<string>();
+export function collectImageLinkRefs(md: string): CollectedImageRef[] {
+	const seen = new Map<string, CollectedImageRef>();
+	const add = (name: string, kind: 'embed' | 'md') => {
+		if (!name) return;
+		const key = `${kind}:${name}`;
+		if (!seen.has(key)) seen.set(key, { name, kind });
+	};
 
 	// Reuse withCodeProtected by running a no-op transform that just
 	// records matches inside the protected text.
 	withCodeProtected(md, (text) => {
 		text.replace(IMAGE_EMBED_RE, (_full, target: string) => {
-			const name = String(target).trim();
-			if (name) seen.add(name);
+			add(String(target).trim(), 'embed');
 			return _full;
 		});
 		text.replace(MD_IMAGE_RE, (_full, _alt: string, url: string) => {
@@ -110,13 +134,22 @@ export function collectImageLinkNames(md: string): string[] {
 			} catch {
 				decoded = pathPart;
 			}
-			if (decoded) seen.add(decoded);
+			add(decoded, 'md');
 			return _full;
 		});
 		return text;
 	});
 
-	return Array.from(seen);
+	return Array.from(seen.values());
+}
+
+/**
+ * @deprecated Use collectImageLinkRefs instead — it preserves the link
+ * kind so callers can decide which misses are fatal. Kept temporarily
+ * so existing imports keep compiling.
+ */
+export function collectImageLinkNames(md: string): string[] {
+	return collectImageLinkRefs(md).map((r) => r.name);
 }
 
 // ---------- image embeds ----------

@@ -102,12 +102,41 @@ export class SettingsManager {
 			ids.add(repo.id);
 		});
 
-		// Check for overlapping paths
-		const paths = this.settings.repositories.map(repo => repo.localPath);
-		for (let i = 0; i < paths.length; i++) {
-			for (let j = i + 1; j < paths.length; j++) {
-				if (this.pathsOverlap(paths[i], paths[j])) {
-					errors.push(`Overlapping paths: ${paths[i]} and ${paths[j]}`);
+		// Collect every vault-relative path each repo claims (localPath for legacy
+		// repos, cloneFolder + aliases for hidden-clone repos).
+		const claimedPaths: Array<{ repoId: string; path: string; kind: string }> = [];
+		for (const repo of this.settings.repositories) {
+			if (repo.hiddenClone?.enabled) {
+				if (repo.hiddenClone.cloneFolder) {
+					claimedPaths.push({ repoId: repo.id, path: repo.hiddenClone.cloneFolder, kind: 'cloneFolder' });
+				}
+				for (const aliasPath of Object.values(repo.hiddenClone.aliases || {})) {
+					if (aliasPath) claimedPaths.push({ repoId: repo.id, path: aliasPath, kind: 'alias' });
+				}
+				// Reject if this repo's cloneFolder overlaps any of its own aliases —
+				// that would create a recursive mess.
+				if (repo.hiddenClone.cloneFolder) {
+					for (const aliasPath of Object.values(repo.hiddenClone.aliases || {})) {
+						if (aliasPath && this.pathsOverlap(repo.hiddenClone.cloneFolder, aliasPath)) {
+							errors.push(`Repository ${repo.id}: cloneFolder "${repo.hiddenClone.cloneFolder}" overlaps alias "${aliasPath}"`);
+						}
+					}
+				}
+			} else {
+				if (repo.localPath) {
+					claimedPaths.push({ repoId: repo.id, path: repo.localPath, kind: 'localPath' });
+				}
+			}
+		}
+
+		// Cross-repo overlap check
+		for (let i = 0; i < claimedPaths.length; i++) {
+			for (let j = i + 1; j < claimedPaths.length; j++) {
+				const a = claimedPaths[i];
+				const b = claimedPaths[j];
+				if (a.repoId === b.repoId && a.kind !== b.kind) continue; // intra-repo handled above
+				if (this.pathsOverlap(a.path, b.path)) {
+					errors.push(`Overlapping paths: "${a.path}" (${a.repoId}.${a.kind}) and "${b.path}" (${b.repoId}.${b.kind})`);
 				}
 			}
 		}

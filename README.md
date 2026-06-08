@@ -2,6 +2,8 @@
 
 A comprehensive GitLab integration for [Obsidian](https://obsidian.md). Connect sub-trees of your vault to GitLab repositories with full Git functionality — commit, push, pull, branch, merge, view history, and more — all without leaving Obsidian.
 
+**New in 2.0**: Hybrid Git backend (Git CLI primary, isomorphic-git fallback), **sparse checkout** for working with just a subfolder of a large repository, and **hidden-clone + hard-link mirror aliases** for renaming deep repo paths into clean vault locations. See [What's new in 2.0](#whats-new-in-20) below.
+
 > ⚠️ **Corporate/Self-Hosted GitLab Users**: If you connect to an internal GitLab instance with self-signed certificates, enable the **Disable SSL Verification** option in the plugin settings to bypass certificate errors.
 
 ## Features
@@ -25,6 +27,9 @@ A comprehensive GitLab integration for [Obsidian](https://obsidian.md). Connect 
 - 👤 **Change Author Annotations** — Git blame annotations showing who changed each line
 
 ### Advanced Features
+- ✂️ **Sparse Checkout** — Work with just the folders you care about from a large repo. Cone-mode selection via folder picker; the rest stays in Git but isn't downloaded to your vault. (Requires Git CLI.)
+- 🗂️ **Hidden Clone + Mirror Aliases** — Move the clone to a hidden vault folder (`.gitlab-clones/`) and surface each sparse path at a vault location of your choice via NTFS hard-link mirroring. Eliminates deep nested paths from your file tree. (Windows + Git CLI.)
+- 🔧 **Hybrid Git Backend** — Uses your system's Git CLI when available (full feature set, sparse checkout, partial clone) and falls back to the built-in [isomorphic-git](https://isomorphic-git.org/) when Git isn't installed (no system dependency).
 - 📦 **Stash Support** — Stash and restore uncommitted changes
 - 📋 **Commit Templates** — Predefined commit message templates with JIRA ticket support
 - 🔀 **Merge Request Creation** — Open GitLab merge requests directly from Obsidian
@@ -214,6 +219,44 @@ When enabled, files and folders in the file explorer show their Git status:
 
 Folders connected to repositories display a folder icon indicator.
 
+### Sparse Checkout
+
+If you only need part of a large repository (e.g. one team's documentation in a monorepo), enable **sparse checkout** in the repository modal:
+
+1. Edit the repository → expand **Sparse checkout** section
+2. Toggle **Enable sparse checkout**
+3. Click **Browse…** to open the folder tree picker, or type paths directly into the textarea (one per line, repo-root-relative)
+4. Save
+
+Only the selected directories are downloaded into your vault. Other paths remain tracked by Git but stay out of your file tree. Branch switches and pulls respect the sparse configuration automatically.
+
+> Sparse checkout requires Git CLI installed on your system (>= 2.25). Without it, the plugin falls back to a full clone via isomorphic-git.
+
+### Hidden Clone with Mirror Aliases (Windows)
+
+For documentation repos where the clone's path is deeply nested (e.g. `Dokumentace/PnB/pv-documentation/docs/cs/analysis/`), you can move the clone into a hidden folder and surface each sparse path at a clean vault location:
+
+1. Make sure **Sparse checkout** is enabled and has at least one path
+2. Scroll to **Hidden clone & junctions** in the repository modal
+3. Toggle **Enable hidden clone with junctions**
+4. Optionally edit the **Hidden clone folder** (defaults to `.gitlab-clones/<repo-id>` — hidden by Obsidian since it starts with a dot)
+5. Each sparse path gets an editable **alias** field — set the vault path you want to see in the file explorer (e.g. `Dokumentace/PnB - analysis`)
+6. Save
+
+On save, the plugin:
+- Moves the existing clone into the hidden folder (one-time, atomic, with rollback)
+- Creates NTFS hard-link mirrors at each alias path so Obsidian sees real files at the clean locations
+
+**Why hard links instead of junctions?** Obsidian doesn't index directory junctions / reparse points. NTFS hard links share the same inode as the source file — edits through the alias path update the same file Git tracks, transparently.
+
+**Lifecycle:**
+- Adding files via the plugin's **Upload file** modal: the file lands in the clone and shows up at the alias on next refresh.
+- Editing existing files via the vault: the change flows straight to Git through the shared inode.
+- Pulling new files: the next refresh adds them to the mirror.
+- Files created directly in the vault at an alias path (not via the plugin): use the **Upload file** modal to promote them into the clone — otherwise they'll be swept as stale on the next mirror reconcile.
+
+To disable, untoggle the option in the modal and save. Mirrors are removed; the clone stays where it is (you can manually rename the folder if desired).
+
 ### GitLab Pages Compatibility
 
 If you publish a repository as a GitLab Pages site, Obsidian-only syntaxes won't render correctly out of the box: `![[image.png]]` embeds, `[[wiki links]]`, and `> [!note]` callouts are non-standard markdown. Enable **GitLab Pages compatibility** on a per-repo basis to have the plugin rewrite staged `.md` files at commit time.
@@ -254,12 +297,15 @@ Unresolved links (image not found, wiki target missing) are left as-is and a war
 | Auto Fetch Interval | Minutes between automatic fetches (0 = disabled) | `0` |
 | Disable SSL Verification | Skip SSL certificate checks (for self-hosted GitLab) | `false` |
 | Exclude Patterns | File patterns to exclude from Git tracking | `[]` |
+| Sparse Checkout | Per-repo: only check out selected directories | Off |
+| Hidden Clone & Junctions | Per-repo: move clone to hidden folder, alias sparse paths | Off |
 
 ## Requirements
 
-- Obsidian v1.0.0 or higher
+- Obsidian v1.0.0 or higher (desktop only)
 - Internet connection for GitLab operations
 - GitLab account with repository access (GitLab.com or self-hosted)
+- **Optional but recommended**: Git CLI (>= 2.25) installed and on your PATH. Without it, the plugin falls back to the built-in isomorphic-git — full clones only, no sparse checkout, no hidden-clone aliases. The plugin auto-detects Git on startup and shows which backend is active in the settings tab.
 
 ## Troubleshooting
 
@@ -333,12 +379,20 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for gui
 
 MIT License — see [LICENSE](LICENSE) for details.
 
+## What's new in 2.0
+
+- **Hybrid Git backend**: the plugin now prefers your system's Git CLI for all operations, with [isomorphic-git](https://isomorphic-git.org/) as a fallback when Git isn't installed. This unlocks sparse checkout, partial clones (`--filter=blob:none`), faster operations on large repos, and standard git auth via URL-embedded tokens.
+- **Sparse checkout** with cone mode and a folder-tree picker. Auto-source: reads the tree from your local clone if present, otherwise fetches via the GitLab REST API.
+- **Hidden clone + hard-link mirrors**: opt-in mode that moves the clone to a hidden vault folder and surfaces each sparse path at a vault location of your choice. Solves the "documentation repo with deeply nested path" UX problem.
+- **GitLab Pages compatibility** still works under both backends.
+- Existing repository configurations from 1.x are picked up automatically — no migration required for users who don't enable the new features.
+
 ## Acknowledgments
 
 - Built with the [Obsidian Plugin API](https://github.com/obsidianmd/obsidian-api)
-- Uses [isomorphic-git](https://isomorphic-git.org/) for Git operations
-- Uses direct fetch calls for GitLab API integration
+- Git operations: system Git CLI primary, [isomorphic-git](https://isomorphic-git.org/) fallback
+- Direct fetch calls for GitLab REST API integration
 
 ---
 
-**Version 1.2** · Created by **Quill of the Weavers**
+**Version 2.0** · Created by **Quill of the Weavers**

@@ -1,6 +1,6 @@
 {
   "name": "obsidian-gitlab-plugin",
-  "version": "1.6.3",
+  "version": "2.0.0",
   "description": "Connect Obsidian vault sub-trees to GitLab repositories with full Git functionality",
   "main": "main.js",
   "scripts": {

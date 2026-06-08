@@ -5,6 +5,7 @@
 
 import { App, TFile, TFolder } from 'obsidian';
 import { RepositoryManager } from '../core/repository-manager';
+import type { JunctionManager } from '../core/junction-manager';
 import { FileStatus, GitFile } from '../types';
 import { normalizePath, isPathWithin } from '../utils/path-utils';
 
@@ -77,13 +78,15 @@ function aggregateFolderStatus(folderPath: string, files: GitFile[]): FileStatus
 export class FileExplorerDecorator {
 	private app: App;
 	private repositoryManager: RepositoryManager;
+	private junctionManager: JunctionManager | null;
 	private observer: MutationObserver | null = null;
 	private enabled: boolean = true;
 	private debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-	constructor(app: App, repositoryManager: RepositoryManager) {
+	constructor(app: App, repositoryManager: RepositoryManager, junctionManager: JunctionManager | null = null) {
 		this.app = app;
 		this.repositoryManager = repositoryManager;
+		this.junctionManager = junctionManager;
 	}
 
 	/**
@@ -163,13 +166,20 @@ export class FileExplorerDecorator {
 
 		for (const state of repos) {
 			if (!state.config.enabled) continue;
+			const useJunctions = this.junctionManager?.isActiveFor(state.config);
 			const repoLocalPath = normalizePath(state.config.localPath);
 
 			for (const file of state.files) {
 				if (file.status === FileStatus.UNMODIFIED || file.status === FileStatus.IGNORED) continue;
-				// Convert repo-relative path to vault-relative path
-				const vaultPath = normalizePath(repoLocalPath + '/' + file.path);
-				statusMap.set(vaultPath, file.status);
+
+				let vaultPath: string | null;
+				if (useJunctions) {
+					vaultPath = this.junctionManager!.repoRelativeToVaultPath(state.config, file.path);
+				} else {
+					vaultPath = normalizePath(repoLocalPath + '/' + file.path);
+				}
+
+				if (vaultPath) statusMap.set(normalizePath(vaultPath), file.status);
 			}
 		}
 
@@ -185,34 +195,49 @@ export class FileExplorerDecorator {
 
 		for (const state of repos) {
 			if (!state.config.enabled) continue;
+			const useJunctions = this.junctionManager?.isActiveFor(state.config);
 			const repoLocalPath = normalizePath(state.config.localPath);
 
-			// Collect all unique parent folders of changed files
-			const folders = new Set<string>();
+			// Compute the vault path for every changed file once, so the folder
+			// walk uses the right (junction-translated) hierarchy.
+			const translated: Array<{ vaultPath: string; status: FileStatus }> = [];
 			for (const file of state.files) {
 				if (file.status === FileStatus.UNMODIFIED || file.status === FileStatus.IGNORED) continue;
-				const vaultPath = normalizePath(repoLocalPath + '/' + file.path);
+				let vaultPath: string | null;
+				if (useJunctions) {
+					vaultPath = this.junctionManager!.repoRelativeToVaultPath(state.config, file.path);
+				} else {
+					vaultPath = normalizePath(repoLocalPath + '/' + file.path);
+				}
+				if (vaultPath) translated.push({ vaultPath: normalizePath(vaultPath), status: file.status });
+			}
+
+			// Junction roots act as "stop walking up" boundaries so a status
+			// badge on a junction file doesn't propagate up to vault root.
+			const stopAt = new Set<string>(
+				useJunctions
+					? this.junctionManager!.listVaultRoots(state.config).map(p => normalizePath(p))
+					: [repoLocalPath],
+			);
+
+			const folders = new Set<string>();
+			for (const { vaultPath } of translated) {
 				let dir = vaultPath;
 				while (true) {
 					const lastSlash = Math.max(dir.lastIndexOf('/'), dir.lastIndexOf('\\'));
 					if (lastSlash <= 0) break;
 					dir = dir.substring(0, lastSlash);
 					folders.add(dir);
+					if (stopAt.has(dir)) break;
 				}
 			}
 
-			// Compute aggregated status for each folder
 			for (const folder of folders) {
 				const folderStatus = aggregateFolderStatus(
 					folder,
-					state.files.map(f => ({
-						...f,
-						path: normalizePath(repoLocalPath + '/' + f.path),
-					}))
+					translated.map(({ vaultPath, status }) => ({ path: vaultPath, status, staged: false })),
 				);
-				if (folderStatus) {
-					folderMap.set(folder, folderStatus);
-				}
+				if (folderStatus) folderMap.set(folder, folderStatus);
 			}
 		}
 

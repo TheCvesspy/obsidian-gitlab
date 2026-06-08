@@ -3,9 +3,12 @@
  * Manages multiple sub-tree to repository mappings
  */
 
-import { App, TFile, TFolder } from 'obsidian';
+import { App, Notice, TFile, TFolder } from 'obsidian';
 import { SubTreeConfig, RepositoryState, GitFile, FileStatus, SyncStatus, GitLabPluginSettings } from '../types';
-import { GitOperations } from '../api/git-operations';
+import type { IGitBackend, GitBackendConfig } from '../api/git-backend';
+import { GitIsoBackend } from '../api/git-iso-backend';
+import { SparseCheckoutManager } from '../api/sparse-checkout';
+import type { JunctionManager } from './junction-manager';
 import { normalizePath, isPathWithin } from '../utils/path-utils';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -19,7 +22,9 @@ export type InitializationCompleteListener = () => void;
 export class RepositoryManager {
 	private app: App;
 	private repositories: Map<string, RepositoryState>;
-	private gitOps: Map<string, GitOperations>;
+	private gitOps: Map<string, IGitBackend>;
+	private backendFactory: ((config: GitBackendConfig) => IGitBackend) | null = null;
+	private junctionMgr: JunctionManager | null = null;
 	private settings: GitLabPluginSettings | null = null;
 	private lastAutoFetch: Map<string, number> = new Map();
 	private watchers: Map<string, fs.FSWatcher> = new Map();
@@ -30,6 +35,37 @@ export class RepositoryManager {
 		this.app = app;
 		this.repositories = new Map();
 		this.gitOps = new Map();
+	}
+
+	/**
+	 * Set a factory function for creating git backends. If not set,
+	 * defaults to GitIsoBackend. Call this before initialize() to
+	 * switch to the CLI backend when Git is available.
+	 */
+	setBackendFactory(factory: (config: GitBackendConfig) => IGitBackend): void {
+		this.backendFactory = factory;
+	}
+
+	/**
+	 * Inject the junction manager so finalize can reconcile junctions for
+	 * hidden-clone repos and path-mapping methods can translate vault ↔ repo.
+	 */
+	setJunctionManager(mgr: JunctionManager): void {
+		this.junctionMgr = mgr;
+	}
+
+	/** Absolute clone path for a repo, respecting hiddenClone mode. */
+	private getCloneAbsPath(config: SubTreeConfig): string {
+		const basePath = (this.app.vault.adapter as any).basePath;
+		const rel = this.junctionMgr?.isActiveFor(config)
+			? config.hiddenClone!.cloneFolder
+			: config.localPath;
+		return path.join(basePath, rel);
+	}
+
+	/** Public so the migration helper can pause the watcher before renaming the clone. */
+	stopWatcherPublic(repoId: string): void {
+		this.stopWatcher(repoId);
 	}
 
 	/**
@@ -149,8 +185,8 @@ export class RepositoryManager {
 		const authorName = this.settings?.defaultAuthorName || 'Obsidian User';
 		const authorEmail = this.settings?.defaultAuthorEmail || 'user@obsidian.md';
 
-		const repoDir = path.join((this.app.vault.adapter as any).basePath, config.localPath);
-		const gitOps = new GitOperations({
+		const repoDir = this.getCloneAbsPath(config);
+		const backendConfig: GitBackendConfig = {
 			dir: repoDir,
 			author: {
 				name: authorName,
@@ -158,7 +194,10 @@ export class RepositoryManager {
 			},
 			disableSslVerification: config.disableSslVerification || false,
 			ignorePatterns: config.ignorePatterns || [],
-		});
+		};
+		const gitOps = this.backendFactory
+			? this.backendFactory(backendConfig)
+			: new GitIsoBackend(backendConfig);
 
 		const state: RepositoryState = {
 			config,
@@ -192,7 +231,7 @@ export class RepositoryManager {
 		if (!state || !gitOps) return;
 
 		const config = state.config;
-		const repoDir = path.join((this.app.vault.adapter as any).basePath, config.localPath);
+		const repoDir = this.getCloneAbsPath(config);
 
 		const gitDir = path.join(repoDir, '.git');
 		const isGitRepo = fs.existsSync(gitDir);
@@ -208,6 +247,46 @@ export class RepositoryManager {
 		} else {
 			await gitOps.addRemote('origin', config.repositoryUrl);
 			await gitOps.ensureAutoCrlf();
+		}
+
+		// Apply sparse checkout if configured (CLI backend only).
+		// On an existing repo, this idempotently sets the cone paths.
+		if (config.sparseCheckout?.enabled && config.sparseCheckout.paths.length > 0) {
+			try {
+				const sparse = new SparseCheckoutManager(gitOps);
+				await sparse.initSparse(config.sparseCheckout.paths);
+				new Notice(`Sparse checkout active in "${config.name}": ${config.sparseCheckout.paths.join(', ')}`);
+			} catch (e) {
+				const msg = e instanceof Error ? e.message : String(e);
+				console.error(`Sparse checkout setup failed for ${config.id}:`, e);
+				new Notice(`Sparse checkout failed for "${config.name}": ${msg}`, 10_000);
+			}
+		} else if (config.sparseCheckout?.enabled === false) {
+			// User disabled sparse checkout — restore full worktree if it was sparse
+			try {
+				const sparse = new SparseCheckoutManager(gitOps);
+				if (await sparse.isActive()) {
+					await sparse.disable();
+					new Notice(`Sparse checkout disabled for "${config.name}"`);
+				}
+			} catch (e) {
+				console.warn(`Sparse checkout disable failed for ${config.id}:`, e);
+			}
+		}
+
+		// Reconcile junctions for hidden-clone repos (runs every finalize so
+		// missing/broken junctions get auto-repaired).
+		if (this.junctionMgr?.isActiveFor(config)) {
+			try {
+				const results = await this.junctionMgr.reconcile(config);
+				const created = Array.from(results.values()).filter(v => v === 'created' || v === 'repaired').length;
+				if (created > 0) {
+					new Notice(`Reconciled ${created} junction(s) for "${config.name}"`);
+				}
+			} catch (e) {
+				console.error(`Junction reconcile failed for ${config.id}:`, e);
+				new Notice(`Junctions for "${config.name}" could not be created — see console.`);
+			}
 		}
 
 		this.startWatcher(config.id, repoDir);
@@ -262,9 +341,14 @@ export class RepositoryManager {
 		const filePath = normalizePath(file.path);
 
 		for (const state of this.repositories.values()) {
-			const repoPath = normalizePath(state.config.localPath);
-			if (isPathWithin(filePath, repoPath)) {
-				return state;
+			if (this.junctionMgr?.isActiveFor(state.config)) {
+				const rel = this.junctionMgr.vaultPathToRepoRelative(state.config, filePath);
+				if (rel !== null) return state;
+			} else {
+				const repoPath = normalizePath(state.config.localPath);
+				if (isPathWithin(filePath, repoPath)) {
+					return state;
+				}
 			}
 		}
 
@@ -278,9 +362,17 @@ export class RepositoryManager {
 		const folderPath = normalizePath(folder.path);
 
 		for (const state of this.repositories.values()) {
-			const repoPath = normalizePath(state.config.localPath);
-			if (isPathWithin(folderPath, repoPath) || folderPath === repoPath) {
-				return state;
+			if (this.junctionMgr?.isActiveFor(state.config)) {
+				const rel = this.junctionMgr.vaultPathToRepoRelative(state.config, folderPath);
+				if (rel !== null) return state;
+				// Also match if folderPath equals an alias root exactly
+				const roots = this.junctionMgr.listVaultRoots(state.config);
+				if (roots.includes(folderPath)) return state;
+			} else {
+				const repoPath = normalizePath(state.config.localPath);
+				if (isPathWithin(folderPath, repoPath) || folderPath === repoPath) {
+					return state;
+				}
 			}
 		}
 
@@ -324,6 +416,15 @@ export class RepositoryManager {
 
 			// Get sync status
 			state.syncStatus = await gitOps.getSyncStatus('origin', state.currentBranch);
+
+			// Keep mirror in sync with clone state (cheap when nothing changed).
+			if (this.junctionMgr?.isActiveFor(state.config)) {
+				try {
+					await this.junctionMgr.reconcile(state.config);
+				} catch (e) {
+					console.warn(`Mirror reconcile failed for ${repositoryId}:`, e);
+				}
+			}
 		} catch (error) {
 			console.error(`Failed to refresh repository ${repositoryId}:`, error);
 		}
@@ -353,9 +454,14 @@ export class RepositoryManager {
 	getRepositoryIdForPath(filePath: string): string | null {
 		const normalized = normalizePath(filePath);
 		for (const [id, state] of this.repositories.entries()) {
-			const repoPath = normalizePath(state.config.localPath);
-			if (isPathWithin(normalized, repoPath)) {
-				return id;
+			if (this.junctionMgr?.isActiveFor(state.config)) {
+				const rel = this.junctionMgr.vaultPathToRepoRelative(state.config, normalized);
+				if (rel !== null) return id;
+			} else {
+				const repoPath = normalizePath(state.config.localPath);
+				if (isPathWithin(normalized, repoPath)) {
+					return id;
+				}
 			}
 		}
 		return null;
@@ -374,7 +480,7 @@ export class RepositoryManager {
 	/**
 	 * Get Git operations for repository
 	 */
-	getGitOps(repositoryId: string): GitOperations | undefined {
+	getGitOps(repositoryId: string): IGitBackend | undefined {
 		return this.gitOps.get(repositoryId);
 	}
 
@@ -385,9 +491,15 @@ export class RepositoryManager {
 		const normalized = normalizePath(filePath);
 
 		for (const state of this.repositories.values()) {
-			const repoPath = normalizePath(state.config.localPath);
-			if (isPathWithin(normalized, repoPath)) {
-				return true;
+			if (this.junctionMgr?.isActiveFor(state.config)) {
+				if (this.junctionMgr.vaultPathToRepoRelative(state.config, normalized) !== null) {
+					return true;
+				}
+			} else {
+				const repoPath = normalizePath(state.config.localPath);
+				if (isPathWithin(normalized, repoPath)) {
+					return true;
+				}
 			}
 		}
 
@@ -401,18 +513,24 @@ export class RepositoryManager {
 		const normalized = normalizePath(filePath);
 
 		for (const [id, state] of this.repositories.entries()) {
-			const repoPath = normalizePath(state.config.localPath);
-			if (isPathWithin(normalized, repoPath)) {
+			let relativePath: string | null = null;
+
+			if (this.junctionMgr?.isActiveFor(state.config)) {
+				relativePath = this.junctionMgr.vaultPathToRepoRelative(state.config, normalized);
+			} else {
+				const repoPath = normalizePath(state.config.localPath);
+				if (isPathWithin(normalized, repoPath)) {
+					relativePath = normalized.substring(repoPath.length + 1);
+				}
+			}
+
+			if (relativePath !== null) {
 				const gitOps = this.gitOps.get(id);
 				if (!gitOps) continue;
-
-				// Get relative path within repository
-				const relativePath = normalized.substring(repoPath.length + 1);
-
 				try {
 					const status = await gitOps.status(relativePath);
 					return this.mapGitStatus(status);
-				} catch (error) {
+				} catch {
 					return null;
 				}
 			}

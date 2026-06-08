@@ -5,7 +5,7 @@
 
 import { ItemView, WorkspaceLeaf, Notice, Setting, Modal, App, setIcon } from 'obsidian';
 import GitLabPlugin from '../main';
-import { RepositoryState, FileStatus, GitBranch, StashEntry, GitTag } from '../types';
+import { RepositoryState, FileStatus, GitBranch, GitTag } from '../types';
 import { MergeRequestModal } from './merge-request-modal';
 import { GitLabClient } from '../api/gitlab-client';
 import { HELP_TEXT } from '../utils/help-text';
@@ -21,6 +21,7 @@ import {
 	CreateTagModal,
 	HelpTooltipModal,
 } from './side-panel/modals';
+import { renderStashSection, runStashCreate, StashSectionDeps } from './side-panel/stash-section';
 
 const DEFAULT_TAB_ID = 'changes';
 const TAB_IDS = ['changes', 'files', 'history', 'branches', 'remote'] as const;
@@ -357,7 +358,7 @@ export class GitLabView extends ItemView {
 			{ id: 'changes',  label: 'Changes',  icon: 'file-diff',         badge: fileCount, tooltip: 'Modified files & commit' },
 			{ id: 'files',    label: 'Files',    icon: 'folder-tree',       tooltip: 'Browse all repository files' },
 			{ id: 'history',  label: 'History',  icon: 'history',           tooltip: 'Commit history' },
-			{ id: 'branches', label: 'Branches', icon: 'git-branch',        tooltip: 'Branches, tags, stashes' },
+			{ id: 'branches', label: 'Branches', icon: 'git-branch',        tooltip: 'Branches and tags' },
 			{ id: 'remote',   label: 'Remote',   icon: 'cloud',             tooltip: 'Merge requests & pipelines' },
 		];
 
@@ -381,6 +382,11 @@ export class GitLabView extends ItemView {
 				body.addClass('gitlab-changes-tab');
 				const scroll = body.createDiv({ cls: 'gitlab-changes-scroll' });
 				this.renderFileList(scroll, state);
+				// Stash sits between the file list and the commit composer —
+				// it's the natural place for "save these changes for later".
+				// We don't await: stash list loads in the background while
+				// the commit composer renders synchronously below.
+				void renderStashSection(scroll, this.stashDeps(state));
 				const footer = body.createDiv({ cls: 'gitlab-changes-footer' });
 				this.renderCommitSection(footer, state);
 				return;
@@ -393,7 +399,6 @@ export class GitLabView extends ItemView {
 				return;
 			case 'branches':
 				await this.renderTagsSection(body, state);
-				await this.renderStashSection(body, state);
 				return;
 			case 'remote':
 				await this.renderMergeRequests(body, state);
@@ -513,6 +518,12 @@ export class GitLabView extends ItemView {
 		this.iconAction(actions, 'folder-input', 'Move or rename this file', (e) => {
 			e.stopPropagation();
 			new MoveFilesModal(this.app, this.plugin, state, [file.path]).open();
+		});
+		// Per-file stash: opens the same modal as "Stash changes" but with
+		// the path pre-populated so only this file's diff is captured.
+		this.iconAction(actions, 'archive', 'Stash this file', (e) => {
+			e.stopPropagation();
+			void this.stashThisFile(state, file.path);
 		});
 	}
 
@@ -687,105 +698,33 @@ export class GitLabView extends ItemView {
 	}
 
 	/**
-	 * Render stash section
+	 * Build the shared dependency bag the stash section uses. Lives on the
+	 * view so the section module stays oblivious to how we refresh — and
+	 * so the Per-file "Stash this file" action can reuse the same flow.
 	 */
-	private async renderStashSection(container: HTMLElement, state: RepositoryState): Promise<void> {
-		const gitOps = this.plugin.repositoryManager?.getGitOps(state.config.id);
-		if (!gitOps) return;
+	stashDeps(state: RepositoryState): StashSectionDeps {
+		return {
+			app: this.app,
+			plugin: this.plugin,
+			state,
+			rerender: async () => {
+				await this.plugin.repositoryManager?.refreshRepository(state.config.id);
+				await this.render();
+			},
+		};
+	}
 
-		const stashSection = container.createDiv({ cls: 'gitlab-stash-section' });
-
-		let stashEntries: StashEntry[] = [];
-		try {
-			stashEntries = await gitOps.stashList();
-		} catch { /* no stashes */ }
-
-		const stashCountText = stashEntries.length > 0 ? ` (${stashEntries.length})` : '';
-		const { content: contentDiv } = this.createSectionHeader(stashSection, `Stash${stashCountText}`, 'stash', {
-			collapsible: true,
-			extraButtons: (headerRow) => {
-				const stashBtn = headerRow.createEl('button', {
-					cls: 'gitlab-small-button gitlab-icon-label-btn',
-				});
-				const stashBtnIcon = stashBtn.createSpan({ cls: 'gitlab-btn-icon' });
-				try { setIcon(stashBtnIcon, 'archive'); } catch { /* ignore */ }
-				stashBtn.createSpan({ text: 'Stash' });
-				stashBtn.title = 'Stash current changes';
-				stashBtn.disabled = !state.syncStatus.hasUncommittedChanges && !state.syncStatus.hasUntrackedFiles;
-				stashBtn.addEventListener('click', async () => {
-					const message = prompt('Stash message (optional):');
-					try {
-						await gitOps.stashPush(message || undefined);
-						new Notice('Changes stashed');
-						await this.plugin.repositoryManager?.refreshRepository(state.config.id);
-						await this.render();
-					} catch {
-						new Notice('Failed to stash changes');
-					}
-				});
-			}
+	/**
+	 * Public stash-this-file entry point — called from the per-file row's
+	 * context action. Delegates to the same modal flow as the section
+	 * header button, but pre-populates the pathspec and message.
+	 */
+	async stashThisFile(state: RepositoryState, filePath: string): Promise<void> {
+		const branch = state.currentBranch || 'work';
+		await runStashCreate(this.stashDeps(state), {
+			paths: [filePath],
+			defaultMessageOverride: `WIP on ${branch} · ${filePath}`,
 		});
-		const stashTarget = contentDiv || stashSection;
-
-		if (stashEntries.length > 0) {
-			const stashList = stashTarget.createDiv({ cls: 'gitlab-stash-list' });
-			stashEntries.forEach((entry, index) => {
-				const entryEl = stashList.createDiv({ cls: 'gitlab-stash-entry' });
-				entryEl.createEl('span', {
-					text: `stash@{${index}}: ${entry.message || 'No message'}`,
-					cls: 'gitlab-stash-msg',
-				});
-
-				const actions = entryEl.createDiv({ cls: 'gitlab-stash-actions' });
-
-				const popBtn = actions.createEl('button', { text: 'Pop', cls: 'gitlab-tiny-button' });
-				popBtn.title = 'Apply and remove this stash';
-				popBtn.addEventListener('click', async () => {
-					try {
-						await gitOps.stashPop(index);
-						new Notice('Stash popped');
-						await this.plugin.repositoryManager?.refreshRepository(state.config.id);
-						await this.render();
-					} catch { new Notice('Failed to pop stash'); }
-				});
-
-				const applyBtn = actions.createEl('button', { text: 'Apply', cls: 'gitlab-tiny-button' });
-				applyBtn.title = 'Apply without removing';
-				applyBtn.addEventListener('click', async () => {
-					try {
-						await gitOps.stashApply(index);
-						new Notice('Stash applied');
-						await this.plugin.repositoryManager?.refreshRepository(state.config.id);
-						await this.render();
-					} catch { new Notice('Failed to apply stash'); }
-				});
-
-				const dropBtn = actions.createEl('button', { cls: 'gitlab-tiny-button gitlab-tiny-danger gitlab-tiny-icon-btn' });
-				try { setIcon(dropBtn, 'x'); } catch { dropBtn.textContent = '✕'; }
-				dropBtn.title = 'Drop this stash entry';
-				dropBtn.addEventListener('click', async () => {
-					try {
-						await gitOps.stashDrop(index);
-						new Notice('Stash dropped');
-						await this.render();
-					} catch { new Notice('Failed to drop stash'); }
-				});
-			});
-
-			if (stashEntries.length > 1) {
-				const clearBtn = stashTarget.createEl('button', {
-					text: 'Clear All Stashes',
-					cls: 'gitlab-small-button gitlab-danger-button',
-				});
-				clearBtn.addEventListener('click', async () => {
-					try {
-						await gitOps.stashClear();
-						new Notice('All stashes cleared');
-						await this.render();
-					} catch { new Notice('Failed to clear stashes'); }
-				});
-			}
-		}
 	}
 
 	/**
@@ -2130,7 +2069,10 @@ export class GitLabView extends ItemView {
 
 			try {
 				if (choice === 'stash') {
-					await gitOps.stashPush(`auto-stash before switching to ${selectedBranch}`);
+					await gitOps.stashPush({
+						message: `auto-stash before switching to ${selectedBranch}`,
+						includeUntracked: true,
+					});
 					new Notice('Changes stashed.');
 					await tryCheckout(false);
 				} else if (choice === 'discard') {

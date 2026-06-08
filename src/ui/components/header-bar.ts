@@ -50,6 +50,19 @@ export function renderHeaderBar(container: HTMLElement, opts: HeaderBarOptions):
 	renderRow1(root, opts);
 	if (opts.state) {
 		renderRow2Branch(root, opts);
+
+		// Sparse checkout badge
+		const sparseCfg = opts.state.config.sparseCheckout;
+		if (sparseCfg?.enabled && sparseCfg.paths.length > 0) {
+			const badge = root.createDiv({ cls: 'gitlab-headerbar-row gitlab-sparse-badge' });
+			const label = badge.createSpan({ text: 'Sparse: ' });
+			label.style.opacity = '0.7';
+			label.style.fontSize = '0.8em';
+			const paths = badge.createSpan({ text: sparseCfg.paths.join(', ') });
+			paths.style.fontSize = '0.8em';
+			paths.style.fontWeight = '500';
+		}
+
 		renderRow3Actions(root, opts);
 	}
 

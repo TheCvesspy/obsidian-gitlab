@@ -1,37 +1,40 @@
 # GitLab Integration for Obsidian — User Guide
 
-> **Version 1.2** · Author: Quill of the Weavers
+> **Version 2.0** · Author: Quill of the Weavers
 
 ---
 
 ## Table of Contents
 
 1. [Getting Started](#getting-started)
-2. [Plugin Settings](#plugin-settings)
-3. [Side Panel Overview](#side-panel-overview)
-4. [Repository Selector](#repository-selector)
-5. [Branch Management](#branch-management)
-6. [Sync Status](#sync-status)
-7. [Action Buttons](#action-buttons)
-8. [Changes & Staging](#changes--staging)
-9. [Commit Section](#commit-section)
-10. [Commit Templates](#commit-templates)
-11. [Stash](#stash)
-12. [Tags](#tags)
-13. [Repository File Browser](#repository-file-browser)
-14. [Recent Commits](#recent-commits)
-15. [Diff Viewer](#diff-viewer)
-16. [File History & Change Authors](#file-history--change-authors)
-17. [Git Graph](#git-graph)
-18. [Merge Request Creation](#merge-request-creation)
-19. [Conflict Resolution](#conflict-resolution)
+2. [Git Backend (CLI vs isomorphic-git)](#git-backend-cli-vs-isomorphic-git)
+3. [Plugin Settings](#plugin-settings)
+4. [Side Panel Overview](#side-panel-overview)
+5. [Repository Selector](#repository-selector)
+6. [Branch Management](#branch-management)
+7. [Sync Status](#sync-status)
+8. [Action Buttons](#action-buttons)
+9. [Changes & Staging](#changes--staging)
+10. [Commit Section](#commit-section)
+11. [Commit Templates](#commit-templates)
+12. [Stash](#stash)
+13. [Tags](#tags)
+14. [Repository File Browser](#repository-file-browser)
+15. [Recent Commits](#recent-commits)
+16. [Diff Viewer](#diff-viewer)
+17. [File History & Change Authors](#file-history--change-authors)
+18. [Git Graph](#git-graph)
+19. [Merge Request Creation](#merge-request-creation)
+20. [Conflict Resolution](#conflict-resolution)
 21. [Exclude Patterns](#exclude-patterns)
-22. [GitLab Pages Compatibility](#gitlab-pages-compatibility)
-23. [Quick Commands](#quick-commands)
-23. [Debug Logging](#debug-logging)
-24. [Command Palette](#command-palette)
-23. [Keyboard Shortcuts](#keyboard-shortcuts)
-24. [Troubleshooting](#troubleshooting)
+22. [Sparse Checkout](#sparse-checkout)
+23. [Hidden Clone & Mirror Aliases](#hidden-clone--mirror-aliases)
+24. [GitLab Pages Compatibility](#gitlab-pages-compatibility)
+25. [Quick Commands](#quick-commands)
+26. [Debug Logging](#debug-logging)
+27. [Command Palette](#command-palette)
+28. [Keyboard Shortcuts](#keyboard-shortcuts)
+29. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -55,6 +58,29 @@ This plugin connects folders (sub-trees) in your Obsidian vault to GitLab reposi
    - For corporate/self-hosted GitLab with self-signed certificates, enable **Disable SSL Verification**
 4. **Open the panel**: Click the Git branch icon (🔀) in the left ribbon, or use the command palette: `Open GitLab Panel`
 5. **Pull** to fetch the latest content from your repository
+
+---
+
+## Git Backend (CLI vs isomorphic-git)
+
+Version 2.0 introduced a hybrid Git backend. On startup the plugin probes for a `git` binary on your PATH:
+
+- **Git CLI found** → all operations run through the CLI. Sparse checkout, hidden-clone aliases, partial clones (`--filter=blob:none`), and other advanced features are available. Fastest path, full feature parity with command-line Git.
+- **Git CLI not found** → falls back to the built-in [isomorphic-git](https://isomorphic-git.org/) (pure JavaScript Git). No system dependency, but no sparse checkout or hidden-clone support.
+
+You can see which backend is active in **Settings → GitLab Integration** at the top of the page, e.g.:
+
+```
+Git backend: CLI — git 2.43.0 (git). Sparse checkout available.
+```
+
+or
+
+```
+Git backend: Built-in (isomorphic-git). Install Git CLI to enable sparse checkout.
+```
+
+The two backends are interchangeable for existing repositories — switching from one to the other (by installing or uninstalling Git CLI) needs only a plugin reload. The repository on disk is just a normal Git working directory; either backend operates on it the same way.
 
 ---
 
@@ -469,6 +495,155 @@ dist/**
 | `temp_*` | Files starting with "temp_" |
 
 > **Note**: Excluded files are hidden from the plugin UI only. They still exist in the Git repository.
+
+---
+
+## Sparse Checkout
+
+Sparse checkout lets you work with only a subset of a Git repository — useful when you've been pointed at a large monorepo but only need a single team's content, or when you want to keep a docs-focused vault lean.
+
+### How it works
+
+Git tracks every file in the repository normally, but only the directories you select are present on disk and visible in your vault. Branch switches and pulls automatically respect the selection — Git fetches the data but only materialises the included paths into the working tree.
+
+The plugin uses **cone mode** (the modern, performant variant of sparse checkout) under the hood, and the actual on-disk apply step bypasses some Git for Windows bugs by writing the sparse-checkout patterns file directly and using plumbing commands (`git update-index --skip-worktree`) to enforce the selection. End result is identical to what `git sparse-checkout set …` would do, just more reliable on Windows.
+
+### Requirements
+
+- Git CLI installed and detected by the plugin (see [Git Backend](#git-backend-cli-vs-isomorphic-git))
+- Sparse checkout is per-repository — you can enable it for some repos and leave others as full clones
+
+### Enabling
+
+1. Open **Settings → GitLab Integration**
+2. Click **Edit** on the repository
+3. Scroll to the **Sparse checkout** section
+4. Toggle **Enable sparse checkout** on
+5. Either:
+   - Type paths into the textarea (one per line, repo-root-relative, forward slashes — e.g. `docs/cs/analysis`)
+   - Or click **Browse…** to open the folder picker (see below)
+6. Save
+
+After save, the plugin re-runs the repository finalisation, applies the sparse-checkout configuration, and removes excluded files from your vault. You'll see a green notice: `Sparse checkout active in "<repo-name>": <paths>`.
+
+### Folder tree picker (Browse… button)
+
+The picker shows the repository's folder structure with checkboxes. Behaviour:
+
+- **Folder-only selection** — cone mode is directory-based, so files aren't individually selectable
+- **Auto-source**:
+  1. If the repo is already cloned locally → reads tree via `git ls-tree HEAD` (offline, instant)
+  2. Otherwise → fetches the tree via GitLab REST API (`/projects/:id/repository/tree?recursive=true`)
+- **Tri-state checkboxes**: full / partial (descendant selected) / unchecked
+- **Smart selection rules**:
+  - Selecting a parent removes redundant child selections automatically
+  - Deselecting a child whose parent was selected intelligently expands the selection to siblings
+- **Live filter**, **expand/collapse all**, **clear selection** buttons
+- Initial selection auto-expands ancestors of already-selected folders
+- Summary row at the bottom shows the canonical (deduplicated) path list that will be saved on **Apply**
+
+### Strict cone mode
+
+By default Git's cone mode includes all root-level files (via the `/*` pattern). The plugin intentionally departs from this and uses **strict cone mode**: only the directories you select are visible. Root-level files (e.g. `README.md`, `mkdocs.yml`) are excluded unless they happen to be inside one of your selected directories. This matches the typical documentation-vault use case.
+
+If you need root files visible too, simply add the repo root (`.`) or specific root-level subdirectories to the sparse path list.
+
+### Operational notes
+
+- **Branch switching** with sparse checkout: switching branches preserves your sparse configuration. Files newly added in the target branch (that fall inside the cone) materialise; files removed elsewhere don't appear.
+- **Pull / fetch**: Git fetches all objects but only updates the working tree for cone-included paths.
+- **Editing the sparse path list**: saving an updated set re-runs the apply step, removing newly-excluded files and restoring newly-included ones from HEAD. Local uncommitted changes outside the cone may block the update — commit or stash first if necessary.
+- **Disabling sparse checkout**: untoggle the option and save. The plugin runs `git sparse-checkout disable`, which restores the full working tree.
+
+---
+
+## Hidden Clone & Mirror Aliases
+
+Sparse checkout solves "I only want some folders." This feature solves "I only want some folders, AND I want them at different vault paths than where they live in the repo."
+
+### Problem this solves
+
+Imagine your repo URL is `https://gitlab.com/team/pv-documentation` and your sparse selection is `docs/cs/analysis`. Even with sparse checkout active, your vault tree shows:
+
+```
+Dokumentace/PnB/pv-documentation/
+└─ docs/
+   └─ cs/
+      └─ analysis/
+         └─ <content>
+```
+
+Four wrapper folders before you reach the content you actually care about. **Hidden Clone & Mirror Aliases** lets you replace that with a flat:
+
+```
+Dokumentace/PnB - analysis/
+└─ <content>
+```
+
+### How it works
+
+1. The actual Git clone is moved to a **hidden vault folder** (`.gitlab-clones/<repo-id>/`). Obsidian ignores folders starting with `.` by default, so this stays out of your file tree.
+2. For each sparse path, a **vault-relative alias** is created — a folder at the path of your choice (e.g. `Dokumentace/PnB - analysis`).
+3. Each alias is populated with **NTFS hard links** to every file in the sparse source folder.
+
+Hard links share the same inode as the source: editing a file at the alias updates the same file Git tracks in the clone. Git status, commit, pull, push all "just work" because they operate on the clone, and the hard links reflect changes transparently.
+
+### Why not directory junctions?
+
+The plugin's first implementation used Windows directory junctions (`mklink /J`). Junctions work at the OS level but **Obsidian's vault indexer doesn't follow them** — content inside a junction never appears in the file explorer or Quick Switcher. NTFS hard links don't have this problem because each file is a real, indexable entry from Obsidian's perspective.
+
+### Requirements
+
+- **Windows** (NTFS hard links). The toggle is hidden / disabled on other platforms.
+- **Git CLI** detected by the plugin
+- **Sparse checkout** enabled with at least one path (this feature is meaningless without it — you'd be mirroring the whole repo)
+
+### Enabling
+
+1. In the repository modal, ensure **Sparse checkout** is enabled with the paths you want
+2. Scroll to **Hidden clone & junctions** → toggle on
+3. (Optional) Edit **Hidden clone folder** — defaults to `.gitlab-clones/<repo-id>`
+4. For each sparse path, an editable **alias** field appears. Set the vault path you want to see — e.g.:
+   - `docs/cs/analysis` → `Dokumentace/PnB - analysis`
+   - `docs/assets` → `Dokumentace/PnB - assets`
+5. Save
+
+On save, the plugin runs a one-shot migration:
+
+1. Stops the file watcher
+2. Atomic `fs.renameSync` of the clone from its old vault location to the hidden folder
+3. Persists the new configuration
+4. Re-initialises the repo (sparse checkout, junction reconcile)
+5. Restarts the watcher
+
+Both the migration and the per-load reconcile use rollback-safe patterns: if anything fails, the clone is restored to its previous location and `hiddenClone.enabled` is cleared so the next plugin load is sane.
+
+### Reconciliation
+
+On every plugin load (and after every refresh of a hidden-clone repo), the plugin runs a **mirror reconcile** for each alias:
+
+- Walks the sparse source folder
+- Creates hard links for files that don't yet have one
+- Removes hard links for files that have been deleted from the clone
+- Cleans up empty directories
+- Leaves correctly-linked files alone (cheap idempotent walk)
+
+So pulls, commits, and branch switches that change the file set are reflected in your aliases automatically.
+
+### Lifecycle and edge cases
+
+- **Editing a file via the alias**: edits flow through the shared inode to the clone. Git status sees the change. ✓
+- **Plugin commit / push / pull**: the plugin operates on the clone. ✓
+- **Adding a new file via the plugin's Upload Files modal**: lands in the clone, surfaces at the alias on next refresh. ✓
+- **Adding a new file directly via Obsidian at an alias path**: the file is NOT yet in the clone, and the next reconcile sweep will delete it as stale. To create new files in a hidden-clone repo, use the plugin's Upload Files modal until a "promote new vault files" feature is added.
+- **Manually deleting a junction folder**: the next reconcile recreates the mirror.
+- **Manually deleting the clone folder**: re-init flow runs as if a fresh repo. You'll need to re-pull.
+
+### Disabling
+
+Untoggle **Enable hidden clone with junctions** and save:
+- All mirror folders are removed (their hard links — the inode references in the clone remain)
+- The clone stays where it is (`.gitlab-clones/<id>/`). To move it back to a visible vault folder, edit **Local Path** in the modal and the next finalize will use that path.
 
 ---
 

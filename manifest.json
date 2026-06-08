@@ -1,7 +1,7 @@
 {
   "id": "obsidian-gitlab",
   "name": "GitLab Integration",
-  "version": "1.6.3",
+  "version": "2.0.0",
   "minAppVersion": "1.0.0",
   "description": "Connect vault sub-trees to GitLab repositories. Manage commits, branches, merges, and conflicts directly within Obsidian.",
   "author": "Quill of the Weavers",

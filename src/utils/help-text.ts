@@ -43,7 +43,7 @@ export const HELP_TEXT: Record<string, { title: string; short: string; detail: s
 	'stash': {
 		title: 'Stash',
 		short: 'Temporarily save uncommitted changes',
-		detail: 'Stash saves your work-in-progress so you can switch branches cleanly. Pop = apply & remove. Apply = apply & keep. Drop = delete without applying. Useful workflow: Stash → Switch branch → Work → Switch back → Pop.',
+		detail: 'Stash saves your work-in-progress so you can switch branches cleanly. By default the stash includes untracked files (new notes), so nothing slips through. Pop = apply & remove. Apply = apply & keep. Drop = delete without applying. Branch from stash = recover a stash that no longer applies cleanly on a fresh branch. Hover a changed file to "Stash this file" only.',
 	},
 	'tags': {
 		title: 'Tags',

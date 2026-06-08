@@ -13,7 +13,15 @@ import { DebugLogger } from './utils/debug-logger';
 import { registerIcons } from './utils/icons';
 import { QuickCommitModal } from './ui/quick-commit-modal';
 import { QuickPushModal, QuickPullModal, QuickBranchModal } from './ui/quick-actions-modal';
+import { StashCreateModal, StashConfirmModal } from './ui/stash-modals';
 import { GitLabClient } from './api/gitlab-client';
+import { GitCliExecutor } from './api/git-cli-executor';
+import { GitCliBackend } from './api/git-cli-backend';
+import { GitIsoBackend } from './api/git-iso-backend';
+import type { GitBackendConfig } from './api/git-backend';
+import { JunctionManager } from './core/junction-manager';
+import { migrateToHiddenClone } from './core/junction-migration';
+import { isJunctionSupported } from './utils/junction-utils';
 
 /**
  * Main plugin class for GitLab integration
@@ -22,6 +30,7 @@ export default class GitLabPlugin extends Plugin {
 	settings!: GitLabPluginSettings;
 	settingsManager!: SettingsManager;
 	repositoryManager!: RepositoryManager;
+	junctionManager!: JunctionManager;
 	fileExplorerDecorator!: FileExplorerDecorator;
 	private statusBarEl: HTMLElement | null = null;
 	private autoFetchIntervalId: ReturnType<typeof setInterval> | null = null;
@@ -38,11 +47,30 @@ export default class GitLabPlugin extends Plugin {
 		await this.settingsManager.loadSettings();
 		this.settings = this.settingsManager.getSettings();
 
+		// Detect Git CLI — determines which backend to use.
+		const gitInfo = await GitCliExecutor.detect(this.settings.gitCliPath ?? undefined);
+		if (gitInfo) {
+			this.settings.gitCliPath = gitInfo.path;
+			this.settings.gitCliVersion = gitInfo.version;
+			console.log(`GitLab Plugin: Git CLI detected — ${gitInfo.version} at ${gitInfo.path}`);
+		} else {
+			this.settings.gitCliPath = null;
+			this.settings.gitCliVersion = undefined;
+			console.log('GitLab Plugin: Git CLI not found — using built-in isomorphic-git (sparse checkout unavailable)');
+		}
+
 		// Initialize repository manager — fast phase only. Heavy per-repo
 		// work (addRemote, fetch, statusMatrix, fs.watch) is deferred to
 		// onLayoutReady below so Obsidian's startup is not blocked on git.
+		this.junctionManager = new JunctionManager(this.app);
 		this.repositoryManager = new RepositoryManager(this.app);
 		this.repositoryManager.setSettings(this.settings);
+		this.repositoryManager.setJunctionManager(this.junctionManager);
+		if (gitInfo) {
+			this.repositoryManager.setBackendFactory((config: GitBackendConfig) =>
+				new GitCliBackend({ ...config, gitPath: gitInfo.path }),
+			);
+		}
 		this.repositoryManager.setFileChangeListener(this.onFsWatchChange);
 		await this.repositoryManager.initialize(this.settings.repositories);
 
@@ -61,7 +89,7 @@ export default class GitLabPlugin extends Plugin {
 
 		// Initialize file explorer status decorator — construct now, start
 		// inside the deferred block below after finalization populates state.
-		this.fileExplorerDecorator = new FileExplorerDecorator(this.app, this.repositoryManager);
+		this.fileExplorerDecorator = new FileExplorerDecorator(this.app, this.repositoryManager, this.junctionManager);
 
 		// Initialize status bar
 		this.statusBarEl = this.addStatusBarItem();
@@ -273,6 +301,112 @@ export default class GitLabPlugin extends Plugin {
 			}
 		});
 
+		// ===== Stash commands =====
+		// Surfaced separately from the side panel so users can keyboard-bind
+		// them via Obsidian's "Hotkeys" tab. Each command picks the
+		// "active" repo (single repo, or the one currently selected in the
+		// side panel, or the first enabled one as a fallback) so the user
+		// never has to disambiguate for the common case.
+		this.addCommand({
+			id: 'stash-changes',
+			name: 'Stash changes (active repo)',
+			callback: async () => {
+				const state = this.pickActiveRepo();
+				if (!state) return;
+				const gitOps = this.repositoryManager?.getGitOps(state.config.id);
+				if (!gitOps) return;
+				const branch = state.currentBranch || 'work';
+				const opts = await new StashCreateModal(this.app, {
+					branch,
+					includeUntracked: true,
+					defaultMessage: `WIP on ${branch} · ${formatStashTimestamp(new Date())}`,
+				}).pick();
+				if (!opts) return;
+				try {
+					await gitOps.stashPush(opts);
+					new Notice('Changes stashed.');
+					await this.repositoryManager?.refreshRepository(state.config.id);
+				} catch (e: any) {
+					new Notice(`Failed to stash: ${e?.message || e}`, 8000);
+				}
+			},
+		});
+
+		this.addCommand({
+			id: 'stash-pop-latest',
+			name: 'Pop latest stash (active repo)',
+			callback: async () => {
+				const state = this.pickActiveRepo();
+				if (!state) return;
+				const gitOps = this.repositoryManager?.getGitOps(state.config.id);
+				if (!gitOps) return;
+				try {
+					const entries = await gitOps.stashList();
+					if (entries.length === 0) {
+						new Notice('No stashes to pop.');
+						return;
+					}
+					await gitOps.stashPop(0);
+					new Notice(`Popped stash@{0}${entries[0].message ? ` — “${entries[0].message}”` : ''}.`);
+					await this.repositoryManager?.refreshRepository(state.config.id);
+				} catch (e: any) {
+					new Notice(`Failed to pop stash: ${e?.message || e}`, 8000);
+				}
+			},
+		});
+
+		this.addCommand({
+			id: 'stash-apply-latest',
+			name: 'Apply latest stash without removing (active repo)',
+			callback: async () => {
+				const state = this.pickActiveRepo();
+				if (!state) return;
+				const gitOps = this.repositoryManager?.getGitOps(state.config.id);
+				if (!gitOps) return;
+				try {
+					const entries = await gitOps.stashList();
+					if (entries.length === 0) {
+						new Notice('No stashes to apply.');
+						return;
+					}
+					await gitOps.stashApply(0);
+					new Notice(`Applied stash@{0}.`);
+					await this.repositoryManager?.refreshRepository(state.config.id);
+				} catch (e: any) {
+					new Notice(`Failed to apply stash: ${e?.message || e}`, 8000);
+				}
+			},
+		});
+
+		this.addCommand({
+			id: 'stash-clear',
+			name: 'Clear all stashes (active repo)',
+			callback: async () => {
+				const state = this.pickActiveRepo();
+				if (!state) return;
+				const gitOps = this.repositoryManager?.getGitOps(state.config.id);
+				if (!gitOps) return;
+				const entries = await gitOps.stashList().catch(() => []);
+				if (entries.length === 0) {
+					new Notice('No stashes to clear.');
+					return;
+				}
+				const ok = await new StashConfirmModal(
+					this.app,
+					'Clear all stashes?',
+					`This will permanently delete all ${entries.length} stash entries. This cannot be undone.`,
+					{ destructive: true, confirmLabel: 'Delete all' },
+				).pick();
+				if (!ok) return;
+				try {
+					await gitOps.stashClear();
+					new Notice('All stashes cleared.');
+				} catch (e: any) {
+					new Notice(`Failed to clear stashes: ${e?.message || e}`, 8000);
+				}
+			},
+		});
+
 		this.addCommand({
 			id: 'open-in-gitlab',
 			name: 'Open Active File in GitLab',
@@ -384,36 +518,84 @@ export default class GitLabPlugin extends Plugin {
 		if (!repoConfig) return;
 
 		const leaf = this.app.workspace.getLeaf('tab');
+		// repoDir should be the actual clone path (where git operates), which
+		// may differ from localPath when hiddenClone is enabled.
+		const repoDir = this.junctionManager?.isActiveFor(repoConfig)
+			? repoConfig.hiddenClone!.cloneFolder
+			: repoConfig.localPath;
 		await leaf.setViewState({
 			type: VIEW_TYPE_CONFLICT,
 			state: {
 				repoId,
 				conflictPaths,
-				repoDir: repoConfig.localPath,
+				repoDir,
 			},
 		});
 		this.app.workspace.revealLeaf(leaf);
 	}
 
 	/**
-	 * Find which repository a vault file belongs to and its relative path
+	 * Find which repository a vault file belongs to and its relative path.
+	 * Returns paths that are vault-relative and repo-relative respectively.
+	 *
+	 * Handles two cases:
+	 *   - hiddenClone active → consult JunctionManager to map the vault path
+	 *     through the alias to a repo-relative path
+	 *   - normal mode → strip the repo's localPath prefix from the vault path
 	 */
 	private findRepoForFile(vaultPath: string, repoId?: string): { foundRepoId: string | null; relativePath: string | null } {
-		const vaultBasePath = (this.app.vault.adapter as any).basePath || '';
+		const normalized = vaultPath.replace(/\\/g, '/').replace(/^\/+/, '');
 
 		for (const repo of this.settings.repositories) {
 			if (repoId && repo.id !== repoId) continue;
 
-			const repoLocalPath = repo.localPath;
-			const fullFilePath = require('path').join(vaultBasePath, vaultPath);
-			
-			if (fullFilePath.startsWith(repoLocalPath)) {
-				const relativePath = fullFilePath.substring(repoLocalPath.length + 1).replace(/\\/g, '/');
-				return { foundRepoId: repo.id, relativePath };
+			if (this.junctionManager?.isActiveFor(repo)) {
+				const rel = this.junctionManager.vaultPathToRepoRelative(repo, normalized);
+				if (rel !== null) {
+					return { foundRepoId: repo.id, relativePath: rel };
+				}
+			} else {
+				const repoLocalPath = (repo.localPath || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+				if (!repoLocalPath) continue;
+				if (normalized === repoLocalPath || normalized.startsWith(repoLocalPath + '/')) {
+					const rel = normalized === repoLocalPath
+						? ''
+						: normalized.substring(repoLocalPath.length + 1);
+					return { foundRepoId: repo.id, relativePath: rel };
+				}
 			}
 		}
 
 		return { foundRepoId: null, relativePath: null };
+	}
+
+	/**
+	 * Pick the "active" repository for command-palette flows. The rules:
+	 *
+	 *   1. If there's exactly one enabled repo, use it.
+	 *   2. Otherwise, prefer the repo whose path contains the active file.
+	 *   3. Otherwise, fall back to the first enabled repo and tell the user.
+	 *
+	 * Returns null (and shows a Notice) if no enabled repo exists.
+	 */
+	pickActiveRepo() {
+		const repos = (this.repositoryManager?.getAllRepositories() || []).filter((r) => r.config.enabled);
+		if (repos.length === 0) {
+			new Notice('No enabled GitLab repositories.');
+			return null;
+		}
+		if (repos.length === 1) return repos[0];
+
+		const active = this.app.workspace.getActiveFile();
+		if (active) {
+			const { foundRepoId } = this.findRepoForFile(active.path);
+			const match = foundRepoId ? repos.find((r) => r.config.id === foundRepoId) : null;
+			if (match) return match;
+		}
+		// Multiple repos and no obvious "current" one — fall back to first
+		// and surface a hint so the user knows to open the side panel for a picker.
+		new Notice(`Multiple repos — using "${repos[0].config.name}". Open the side panel to choose another.`);
+		return repos[0];
 	}
 
 	/**
@@ -477,7 +659,12 @@ export default class GitLabPlugin extends Plugin {
 
 		for (const leaf of panelLeaves) {
 			const view = leaf.view as GitLabView | undefined;
-			view?.render().catch(() => { /* guarded internally */ });
+			// Guard against deferred view placeholders (Obsidian 1.7+) which
+			// share the registered view type but lack our concrete methods
+			// until the leaf is actually activated.
+			if (view && typeof view.render === 'function') {
+				Promise.resolve(view.render()).catch(() => { /* guarded internally */ });
+			}
 		}
 	}
 
@@ -708,6 +895,19 @@ class GitLabSettingTab extends PluginSettingTab {
 
 		containerEl.createEl('h2', { text: 'GitLab Integration Settings' });
 
+		// Git backend info
+		const gitPath = this.plugin.settings.gitCliPath;
+		const gitVersion = this.plugin.settings.gitCliVersion;
+		if (gitPath) {
+			new Setting(containerEl)
+				.setName('Git backend')
+				.setDesc(`CLI — git ${gitVersion} (${gitPath}). Sparse checkout available.`);
+		} else {
+			new Setting(containerEl)
+				.setName('Git backend')
+				.setDesc('Built-in (isomorphic-git). Install Git CLI to enable sparse checkout.');
+		}
+
 		// Global settings
 		containerEl.createEl('h3', { text: 'Global Settings' });
 
@@ -847,26 +1047,66 @@ class GitLabSettingTab extends PluginSettingTab {
 
 		// List existing repositories
 		this.plugin.settings.repositories.forEach((repo, index) => {
+			const hcActive = !!repo.hiddenClone?.enabled;
+			const desc = hcActive
+				? `[hidden clone] ${Object.values(repo.hiddenClone!.aliases).join(', ') || repo.hiddenClone!.cloneFolder} → ${repo.repositoryUrl}`
+				: `${repo.localPath} → ${repo.repositoryUrl}`;
+
 			new Setting(containerEl)
 				.setName(repo.name || `Repository ${index + 1}`)
-				.setDesc(`${repo.localPath} → ${repo.repositoryUrl}`)
+				.setDesc(desc)
 				.addButton(button => button
 					.setButtonText('Edit')
 					.onClick(() => {
+						const previousConfig = { ...repo };
 						const modal = new RepositoryConfigModal(
 							this.app,
 							{ ...repo },
 							async (updatedConfig) => {
 								const repoIndex = this.plugin.settings.repositories.findIndex(r => r.id === repo.id);
 								if (repoIndex !== -1) {
+									const hcEnabledBefore = !!previousConfig.hiddenClone?.enabled;
+									const hcEnabledAfter = !!updatedConfig.hiddenClone?.enabled;
+
 									this.plugin.settings.repositories[repoIndex] = updatedConfig;
 									await this.plugin.settingsManager.saveSettings();
-									await this.plugin.repositoryManager.initialize(this.plugin.settings.repositories);
-									await this.plugin.repositoryManager.finalizeInitialization();
+
+									// Hidden clone migration trigger: when toggled off → on, run migration
+									if (!hcEnabledBefore && hcEnabledAfter) {
+										try {
+											await migrateToHiddenClone(
+												this.app,
+												this.plugin.settingsManager,
+												this.plugin.repositoryManager,
+												updatedConfig,
+												this.plugin.junctionManager,
+											);
+										} catch (e) {
+											new Notice(`Migration failed: ${e instanceof Error ? e.message : String(e)}`, 10_000);
+											console.error('Hidden clone migration failed', e);
+										}
+									} else if (hcEnabledBefore && !hcEnabledAfter) {
+										// Toggled off → tear down junctions (clone stays put — user can move manually)
+										try {
+											await this.plugin.junctionManager.removeAll(previousConfig);
+											new Notice(`Junctions removed for "${updatedConfig.name}". Clone remains at ${previousConfig.hiddenClone!.cloneFolder}.`);
+										} catch (e) {
+											console.warn('Junction teardown failed', e);
+										}
+										await this.plugin.repositoryManager.initialize(this.plugin.settings.repositories);
+										await this.plugin.repositoryManager.finalizeInitialization();
+									} else {
+										// Normal save (no hiddenClone toggle change)
+										await this.plugin.repositoryManager.initialize(this.plugin.settings.repositories);
+										await this.plugin.repositoryManager.finalizeInitialization();
+									}
+
 									new Notice(`Updated repository: ${updatedConfig.name}`);
 									this.display();
 								}
-							}
+							},
+							!!this.plugin.settings.gitCliPath,
+							(repoId) => this.plugin.repositoryManager.getGitOps(repoId),
 						);
 						modal.open();
 					}))
@@ -898,14 +1138,33 @@ class GitLabSettingTab extends PluginSettingTab {
 								new Notice('A repository with this ID already exists');
 								return;
 							}
-							
+
 							this.plugin.settings.repositories.push(newConfig);
 							await this.plugin.settingsManager.saveSettings();
 							await this.plugin.repositoryManager.initialize(this.plugin.settings.repositories);
 							await this.plugin.repositoryManager.finalizeInitialization();
+
+							// If hidden clone is enabled on a fresh repo, run migration
+							// (sets up the hidden folder, creates junctions after first clone).
+							if (newConfig.hiddenClone?.enabled) {
+								try {
+									await migrateToHiddenClone(
+										this.app,
+										this.plugin.settingsManager,
+										this.plugin.repositoryManager,
+										newConfig,
+										this.plugin.junctionManager,
+									);
+								} catch (e) {
+									new Notice(`Hidden clone setup failed: ${e instanceof Error ? e.message : String(e)}`, 10_000);
+								}
+							}
+
 							new Notice(`Added repository: ${newConfig.name}`);
 							this.display();
-						}
+						},
+						!!this.plugin.settings.gitCliPath,
+						(repoId) => this.plugin.repositoryManager.getGitOps(repoId),
 					);
 					modal.open();
 				}));
@@ -1173,4 +1432,14 @@ class GuideModal extends Modal {
 		const { contentEl } = this;
 		contentEl.empty();
 	}
+}
+
+/**
+ * Local helper used by the stash commands — keeps main.ts free of stash
+ * UI implementation details, but avoids importing the side-panel module
+ * (which would pull in the whole view) just for one formatter.
+ */
+function formatStashTimestamp(d: Date): string {
+	const pad = (n: number) => String(n).padStart(2, '0');
+	return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }

@@ -107,8 +107,12 @@ export class UploadFilesModal extends Modal {
 	}
 
 	private getRepoFullPath(): string {
+		const cfg = this.repoState.config;
 		const basePath = (this.app.vault.adapter as any).basePath as string;
-		return path.join(basePath, this.repoState.config.localPath);
+		const rel = cfg.hiddenClone?.enabled && cfg.hiddenClone.cloneFolder
+			? cfg.hiddenClone.cloneFolder
+			: cfg.localPath;
+		return path.join(basePath, rel);
 	}
 
 	private buildTree(): FolderNode {

@@ -209,8 +209,14 @@ export class MoveFilesModal extends Modal {
 	// ---------- source data ----------
 
 	private getRepoFullPath(): string {
+		const cfg = this.repoState.config;
 		const basePath = (this.app.vault.adapter as any).basePath as string;
-		return path.join(basePath, this.repoState.config.localPath);
+		// Use the hidden-clone path when active so the file walk happens on
+		// the real clone, not on the (sparse-filtered) junction targets.
+		const rel = cfg.hiddenClone?.enabled && cfg.hiddenClone.cloneFolder
+			? cfg.hiddenClone.cloneFolder
+			: cfg.localPath;
+		return path.join(basePath, rel);
 	}
 
 	private buildTree(): FolderNode {
@@ -277,8 +283,15 @@ export class MoveFilesModal extends Modal {
 		}
 
 		const vaultBase = (this.app.vault.adapter as any).basePath as string;
-		const repoLocal = this.repoState.config.localPath;
-		const absRepoDir = path.join(vaultBase, repoLocal);
+		const cfg = this.repoState.config;
+		const junctionMgr = this.plugin.junctionManager;
+		const hcActive = !!junctionMgr?.isActiveFor(cfg);
+		// Filesystem operations (fs.existsSync, fs.rename, mkdirSync) all run
+		// against the real on-disk clone — the hidden-clone folder when active,
+		// otherwise the legacy localPath.
+		const absRepoDir = hcActive
+			? junctionMgr!.getCloneAbsPath(cfg)
+			: path.join(vaultBase, cfg.localPath);
 		const absDestDir = path.join(absRepoDir, this.destPath);
 
 		try {
@@ -320,8 +333,8 @@ export class MoveFilesModal extends Modal {
 					continue;
 				}
 
-				const vaultRelSrc = this.toVaultRel(repoLocal, src);
-				const vaultRelDest = this.toVaultRel(repoLocal, destRepoRel);
+				const vaultRelSrc = this.repoRelToVault(src);
+				const vaultRelDest = this.repoRelToVault(destRepoRel);
 				const tfile = this.app.vault.getAbstractFileByPath(vaultRelSrc);
 
 				if (tfile instanceof TFile || tfile instanceof TFolder) {
@@ -351,8 +364,22 @@ export class MoveFilesModal extends Modal {
 		this.close();
 	}
 
-	private toVaultRel(repoLocal: string, repoRel: string): string {
-		const joined = repoLocal ? `${repoLocal}/${repoRel}` : repoRel;
+	/**
+	 * Convert a repo-root-relative path to the vault-relative path Obsidian
+	 * knows about. In hidden-clone mode this routes through the alias map;
+	 * otherwise it's just `<localPath>/<repoRel>`.
+	 */
+	private repoRelToVault(repoRel: string): string {
+		const cfg = this.repoState.config;
+		const junctionMgr = this.plugin.junctionManager;
+		if (junctionMgr?.isActiveFor(cfg)) {
+			const translated = junctionMgr.repoRelativeToVaultPath(cfg, repoRel);
+			if (translated) return translated.replace(/\\/g, '/');
+			// Outside any alias — fall back to the hidden clone vault path
+			const cloneRel = junctionMgr.getCloneVaultPath(cfg);
+			return `${cloneRel}/${repoRel}`.replace(/\\/g, '/');
+		}
+		const joined = cfg.localPath ? `${cfg.localPath}/${repoRel}` : repoRel;
 		return joined.replace(/\\/g, '/');
 	}
 }

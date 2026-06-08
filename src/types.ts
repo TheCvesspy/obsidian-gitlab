@@ -28,6 +28,47 @@ export interface SubTreeConfig {
 	ignorePatterns?: string[];
 	/** GitLab Pages compatibility transform applied to .md files at commit time */
 	gitlabPagesCompat?: GitLabPagesCompatConfig;
+	/** Sparse checkout configuration (CLI backend only) */
+	sparseCheckout?: SparseCheckoutConfig;
+	/** Hidden-clone-with-junctions configuration (Windows + CLI backend only) */
+	hiddenClone?: HiddenCloneConfig;
+}
+
+/**
+ * Sparse checkout configuration for a single repository.
+ * Only effective when the Git CLI backend is in use.
+ */
+export interface SparseCheckoutConfig {
+	/** Whether sparse checkout is enabled for this repo */
+	enabled: boolean;
+	/** Cone-mode paths to include (directories relative to repo root) */
+	paths: string[];
+}
+
+/**
+ * Hidden-clone configuration. When enabled, the repository's worktree
+ * lives under `.gitlab-clones/<repo-id>/` (hidden from Obsidian by the
+ * leading dot) and selected sparse-checkout paths are surfaced into the
+ * vault as Windows directory junctions at user-chosen vault paths.
+ *
+ * Requires Windows and sparse checkout enabled. The `localPath` field
+ * remains as a deprecated-but-harmless default for alias seeding.
+ */
+export interface HiddenCloneConfig {
+	/** Master toggle. When false, plugin behaves exactly as before. */
+	enabled: boolean;
+	/** Vault-relative folder where the bare worktree lives. Default: `.gitlab-clones/<repo-id>` */
+	cloneFolder: string;
+	/**
+	 * Map of repo-relative sparse path → vault-relative junction path.
+	 * Keys must be a subset of `sparseCheckout.paths`. Each entry creates
+	 * a Windows directory junction at the value (vault-relative) pointing
+	 * to `<cloneFolder>/<key>` (the actual worktree subfolder).
+	 *
+	 *   { "docs/assets": "Dokumentace/PnB - assets",
+	 *     "docs/cs/analysis": "Dokumentace/PnB - analysis" }
+	 */
+	aliases: Record<string, string>;
 }
 
 /**
@@ -100,6 +141,13 @@ export interface GitLabPluginSettings {
 	 * in `side-panel-view.ts` (e.g. "changes", "files", "history", ...).
 	 */
 	activeTabByRepo?: Record<string, string>;
+	/**
+	 * Detected Git CLI path. `null` means Git was not found and the plugin
+	 * will use the isomorphic-git fallback (sparse checkout unavailable).
+	 */
+	gitCliPath?: string | null;
+	/** Detected Git CLI version string (e.g. "2.43.0") */
+	gitCliVersion?: string;
 }
 
 /**
@@ -305,12 +353,47 @@ export interface GitTag {
 }
 
 /**
- * Stash entry
+ * Stash entry. The optional fields are populated by backends that can
+ * cheaply parse them out of `git stash list`; the side panel renders
+ * gracefully when they're missing so iso-git callers still work.
  */
 export interface StashEntry {
 	index: number;
+	/** Human-readable summary (the bit after "WIP on <branch>: "). */
 	message: string;
+	/** Object id of the stash commit (W). Empty if the backend can't supply it. */
 	oid: string;
+	/** Branch the stash was created on, if parseable from the subject. */
+	branch?: string;
+	/** Unix epoch seconds at which the stash was created. */
+	timestamp?: number;
+}
+
+/**
+ * Per-file change inside a stash entry, returned by `stashShow`.
+ * Used by the side panel to render an expand-on-click file list.
+ */
+export interface StashFileChange {
+	path: string;
+	/** Git short status letter — 'A'|'M'|'D'|'R'|'C'|'?' (untracked = '?'). */
+	status: string;
+	insertions: number;
+	deletions: number;
+}
+
+/**
+ * Options accepted by `stashPush`. All flags are optional — backends that
+ * can't honor a flag (e.g. iso-git lacks pathspec support) should ignore
+ * it silently rather than fail the call.
+ */
+export interface StashPushOptions {
+	message?: string;
+	/** Pass `-u` so untracked files are stashed too (Obsidian default). */
+	includeUntracked?: boolean;
+	/** Keep the index intact (`--keep-index`) — staged changes stay staged. */
+	keepIndex?: boolean;
+	/** Pathspec for partial stash. Paths are repo-relative. */
+	paths?: string[];
 }
 
 /**

@@ -1,4 +1,525 @@
-/* ===== Stash Section ===== */
+/* ===== Stash Section (v2 — Changes tab) ===== */
+
+.gitlab-stash-v2 {
+	margin: 12px 0 4px;
+	padding: 10px 12px 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	background: var(--background-secondary);
+}
+
+/* Header: title + count + primary button. */
+.gitlab-stash-v2-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 8px;
+}
+
+.gitlab-stash-v2-title-wrap {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex: 1;
+	min-width: 0;
+}
+
+.gitlab-stash-v2-title-icon {
+	display: inline-flex;
+	align-items: center;
+	color: var(--text-muted);
+}
+
+.gitlab-stash-v2-title-icon .svg-icon {
+	width: 14px;
+	height: 14px;
+}
+
+.gitlab-stash-v2-title {
+	font-weight: 600;
+	font-size: 0.9em;
+	color: var(--text-normal);
+}
+
+.gitlab-stash-v2-count {
+	min-width: 18px;
+	padding: 0 6px;
+	border-radius: 9px;
+	background: var(--background-modifier-border);
+	color: var(--text-muted);
+	font-size: 0.75em;
+	font-weight: 600;
+	text-align: center;
+	line-height: 1.4;
+}
+
+.gitlab-stash-v2-count:empty {
+	display: none;
+}
+
+.gitlab-stash-v2-primary {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 4px 10px;
+	font-size: 0.8em;
+	border-radius: 5px;
+	cursor: pointer;
+}
+
+.gitlab-stash-v2-primary[disabled] {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.gitlab-stash-v2-primary-icon {
+	display: inline-flex;
+	align-items: center;
+}
+
+.gitlab-stash-v2-primary-icon .svg-icon {
+	width: 12px;
+	height: 12px;
+}
+
+/* Body container. */
+.gitlab-stash-v2-body {
+	display: flex;
+	flex-direction: column;
+}
+
+.gitlab-stash-v2-loading {
+	font-size: 0.8em;
+	color: var(--text-muted);
+	padding: 4px 0;
+}
+
+/* Empty state. */
+.gitlab-stash-v2-empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 14px 8px;
+	color: var(--text-muted);
+	text-align: center;
+}
+
+.gitlab-stash-v2-empty-icon {
+	color: var(--text-faint);
+	margin-bottom: 4px;
+}
+
+.gitlab-stash-v2-empty-icon .svg-icon {
+	width: 22px;
+	height: 22px;
+}
+
+.gitlab-stash-v2-empty-title {
+	font-size: 0.85em;
+	font-weight: 600;
+	color: var(--text-muted);
+}
+
+.gitlab-stash-v2-empty-hint {
+	font-size: 0.75em;
+	color: var(--text-faint);
+	max-width: 280px;
+	margin-top: 2px;
+}
+
+/* List of stash entries. */
+.gitlab-stash-v2-list {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.gitlab-stash-v2-row {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	background: var(--background-primary);
+	overflow: hidden;
+	transition: border-color 0.15s, background-color 0.15s;
+}
+
+.gitlab-stash-v2-row:hover {
+	border-color: var(--interactive-accent);
+}
+
+/* Clickable summary row. */
+.gitlab-stash-v2-summary {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 8px;
+	cursor: pointer;
+	user-select: none;
+}
+
+.gitlab-stash-v2-summary:hover {
+	background: var(--background-modifier-hover);
+}
+
+.gitlab-stash-v2-expander {
+	display: inline-flex;
+	align-items: center;
+	color: var(--text-muted);
+	flex-shrink: 0;
+}
+
+.gitlab-stash-v2-expander .svg-icon {
+	width: 14px;
+	height: 14px;
+}
+
+.gitlab-stash-v2-info {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.gitlab-stash-v2-top {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	min-width: 0;
+}
+
+.gitlab-stash-v2-ref {
+	font-family: var(--font-monospace);
+	font-size: 0.72em;
+	color: var(--text-faint);
+	flex-shrink: 0;
+}
+
+.gitlab-stash-v2-msg {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 0.85em;
+	color: var(--text-normal);
+}
+
+.gitlab-stash-v2-sub {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 0.72em;
+	color: var(--text-muted);
+	flex-wrap: wrap;
+}
+
+.gitlab-stash-v2-sub-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	padding: 1px 6px;
+	border-radius: 8px;
+	background: var(--background-modifier-border);
+	color: var(--text-muted);
+}
+
+.gitlab-stash-v2-sub-pill-icon {
+	display: inline-flex;
+	align-items: center;
+}
+
+.gitlab-stash-v2-sub-pill-icon .svg-icon {
+	width: 10px;
+	height: 10px;
+}
+
+.gitlab-stash-v2-sub-time {
+	color: var(--text-muted);
+}
+
+.gitlab-stash-v2-sub-oid {
+	font-family: var(--font-monospace);
+	color: var(--text-faint);
+}
+
+/* Per-row action buttons. */
+.gitlab-stash-v2-actions {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	flex-shrink: 0;
+}
+
+.gitlab-stash-v2-actionbtn {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 3px 8px;
+	font-size: 0.75em;
+	border-radius: 4px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	color: var(--text-normal);
+	cursor: pointer;
+	transition: background-color 0.15s, border-color 0.15s;
+}
+
+.gitlab-stash-v2-actionbtn:hover:not(:disabled) {
+	background: var(--background-modifier-hover);
+	border-color: var(--interactive-accent);
+}
+
+.gitlab-stash-v2-actionbtn:disabled {
+	opacity: 0.5;
+	cursor: progress;
+}
+
+.gitlab-stash-v2-actionbtn-icon {
+	display: inline-flex;
+	align-items: center;
+}
+
+.gitlab-stash-v2-actionbtn-icon .svg-icon {
+	width: 12px;
+	height: 12px;
+}
+
+.gitlab-stash-v2-iconbtn {
+	padding: 4px;
+}
+
+.gitlab-stash-v2-iconbtn .svg-icon {
+	width: 13px;
+	height: 13px;
+}
+
+.gitlab-stash-v2-iconbtn-danger {
+	color: var(--text-error);
+}
+
+.gitlab-stash-v2-iconbtn-danger:hover:not(:disabled) {
+	background: var(--background-modifier-error-hover, var(--background-modifier-error));
+	color: var(--text-on-accent);
+	border-color: var(--text-error);
+}
+
+/* Lazy-loaded file detail. */
+.gitlab-stash-v2-detail {
+	border-top: 1px solid var(--background-modifier-border);
+	padding: 6px 10px 8px 28px; /* indent under the expander */
+	background: var(--background-secondary-alt, var(--background-secondary));
+}
+
+.gitlab-stash-v2-collapsed {
+	display: none;
+}
+
+.gitlab-stash-v2-detail-loading,
+.gitlab-stash-v2-detail-empty {
+	font-size: 0.75em;
+	color: var(--text-muted);
+}
+
+.gitlab-stash-v2-detail-stat {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 0.72em;
+	color: var(--text-muted);
+	margin-bottom: 4px;
+}
+
+.gitlab-stash-v2-detail-stat-files {
+	color: var(--text-normal);
+	font-weight: 500;
+}
+
+.gitlab-stash-v2-detail-files {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.gitlab-stash-v2-detail-file {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 2px 0;
+	font-size: 0.78em;
+}
+
+.gitlab-stash-v2-detail-status {
+	display: inline-block;
+	width: 14px;
+	font-family: var(--font-monospace);
+	font-size: 0.8em;
+	text-align: center;
+	font-weight: 700;
+	color: var(--text-muted);
+	flex-shrink: 0;
+}
+
+.gitlab-stash-v2-detail-status-a { color: var(--color-green); }
+.gitlab-stash-v2-detail-status-m { color: var(--color-yellow); }
+.gitlab-stash-v2-detail-status-d { color: var(--color-red); }
+.gitlab-stash-v2-detail-status-r { color: var(--color-blue); }
+.gitlab-stash-v2-detail-status-c { color: var(--color-cyan); }
+
+.gitlab-stash-v2-detail-file-path {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-family: var(--font-monospace);
+	font-size: 0.85em;
+	color: var(--text-normal);
+}
+
+.gitlab-stash-v2-detail-file-stats {
+	display: inline-flex;
+	gap: 4px;
+	font-family: var(--font-monospace);
+	font-size: 0.72em;
+}
+
+.gitlab-stash-v2-add {
+	color: var(--color-green);
+}
+
+.gitlab-stash-v2-del {
+	color: var(--color-red);
+}
+
+/* Footer "Clear all" button. */
+.gitlab-stash-v2-footer {
+	margin-top: 8px;
+	display: flex;
+	justify-content: flex-end;
+}
+
+.gitlab-stash-v2-clear {
+	padding: 3px 10px;
+	font-size: 0.75em;
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+/* ===== Stash modals ===== */
+
+.gitlab-stash-modal-meta {
+	display: flex;
+	gap: 6px;
+	margin-bottom: 12px;
+	flex-wrap: wrap;
+}
+
+.gitlab-stash-modal-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 2px 8px;
+	border-radius: 10px;
+	background: var(--background-secondary);
+	color: var(--text-muted);
+	font-size: 0.8em;
+}
+
+.gitlab-stash-modal-pill-icon {
+	display: inline-flex;
+	align-items: center;
+}
+
+.gitlab-stash-modal-pill-icon .svg-icon {
+	width: 11px;
+	height: 11px;
+}
+
+.gitlab-stash-modal-pill-scope {
+	background: var(--background-modifier-border);
+}
+
+.gitlab-stash-modal-label {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	font-weight: 500;
+	font-size: 0.85em;
+	margin-bottom: 4px;
+}
+
+.gitlab-stash-modal-label-hint {
+	font-weight: 400;
+	font-size: 0.85em;
+	color: var(--text-muted);
+}
+
+.gitlab-stash-modal-textarea,
+.gitlab-stash-modal-input {
+	width: 100%;
+	padding: 6px 8px;
+	border-radius: 4px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-family: var(--font-text);
+	font-size: 0.9em;
+	resize: vertical;
+	box-sizing: border-box;
+}
+
+.gitlab-stash-modal-textarea:focus,
+.gitlab-stash-modal-input:focus {
+	outline: 1px solid var(--interactive-accent);
+	border-color: var(--interactive-accent);
+}
+
+.gitlab-stash-modal-options {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin-top: 12px;
+}
+
+.gitlab-stash-modal-option {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
+	font-size: 0.85em;
+	cursor: pointer;
+}
+
+.gitlab-stash-modal-option-hint {
+	flex-basis: 100%;
+	padding-left: 22px;
+	color: var(--text-muted);
+	font-size: 0.85em;
+}
+
+.gitlab-stash-modal-body {
+	font-size: 0.9em;
+	color: var(--text-normal);
+	margin: 0 0 12px;
+}
+
+.gitlab-stash-modal-buttons {
+	display: flex;
+	gap: 8px;
+	justify-content: flex-end;
+	margin-top: 16px;
+}
+
+.gitlab-stash-modal-buttons button {
+	padding: 5px 14px;
+	font-size: 0.85em;
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+/* Legacy class kept so other surfaces that reference it still get sensible
+   defaults. The redesigned section no longer uses these. */
 .gitlab-stash-section,
 .gitlab-tag-section {
 	margin-top: 12px;
@@ -44,7 +565,6 @@
 	border: 1px solid var(--background-modifier-border);
 	background-color: var(--background-primary);
 	color: var(--text-normal);
-	transition: background-color 0.15s;
 }
 
 .gitlab-tiny-button:hover {
@@ -70,37 +590,4 @@
 .gitlab-danger-button:hover {
 	background-color: var(--text-error);
 	color: var(--text-on-accent);
-}
-
-.gitlab-stash-list {
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
-	margin-top: 4px;
-}
-
-.gitlab-stash-entry {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	padding: 4px 8px;
-	border-radius: 4px;
-	background: var(--background-secondary);
-	font-size: 0.85em;
-}
-
-.gitlab-stash-msg {
-	flex: 1;
-	min-width: 0;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-	font-family: var(--font-monospace);
-	font-size: 0.9em;
-}
-
-.gitlab-stash-actions {
-	display: flex;
-	gap: 4px;
-	flex-shrink: 0;
 }

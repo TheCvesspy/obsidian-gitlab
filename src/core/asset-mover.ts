@@ -30,24 +30,38 @@ interface MoveRecord {
 
 export class AssetMover {
 	private app: App;
-	private repoVaultPath: string;
 	private assetsFolderRel: string;
 	private assetsFolderVault: string;
 	private maxBytes: number;
+	private onAfterMove?: (vaultPath: string, repoRelPath: string) => Promise<void>;
 
 	/** Cache so the same source file is only moved once per run. */
 	private cache = new Map<string, string>(); // source vault path -> new vault path
 	private moves: MoveRecord[] = [];
 	private folderEnsured = false;
 
-	constructor(app: App, repoVaultPath: string, assetsFolderRel: string, maxBytes: number) {
+	/**
+	 * @param assetsFolderVault Pre-computed vault-relative path of the assets folder.
+	 *   In normal mode: `<repo localPath>/<assetsFolderRel>`. In hidden-clone mode:
+	 *   the alias path that maps to the assets folder (caller resolves this).
+	 * @param assetsFolderRel  Repo-root-relative path of the assets folder (for
+	 *   producing repo-relative paths in `movedRepoRelPaths()`).
+	 * @param onAfterMove Optional hook fired after each successful move with
+	 *   (newVaultPath, repoRelPath). Used by the hidden-clone pipeline to
+	 *   hard-link the new file to its clone counterpart.
+	 */
+	constructor(
+		app: App,
+		assetsFolderVault: string,
+		assetsFolderRel: string,
+		maxBytes: number,
+		onAfterMove?: (vaultPath: string, repoRelPath: string) => Promise<void>,
+	) {
 		this.app = app;
-		this.repoVaultPath = repoVaultPath.replace(/\/+$/, '');
 		this.assetsFolderRel = assetsFolderRel.replace(/^\/+|\/+$/g, '') || 'assets';
-		this.assetsFolderVault = this.repoVaultPath
-			? `${this.repoVaultPath}/${this.assetsFolderRel}`
-			: this.assetsFolderRel;
+		this.assetsFolderVault = assetsFolderVault.replace(/\/+$/, '');
 		this.maxBytes = maxBytes;
+		this.onAfterMove = onAfterMove;
 	}
 
 	/**
@@ -79,7 +93,32 @@ export class AssetMover {
 		}
 		this.moves.push({ from: fromPath, to: targetPath });
 		this.cache.set(fromPath, targetPath);
+
+		// Post-move hook (used by hidden-clone mode to hard-link the new file
+		// from the alias path into the clone so git sees it).
+		if (this.onAfterMove) {
+			const repoRel = this.targetToRepoRel(targetPath);
+			try {
+				await this.onAfterMove(targetPath, repoRel);
+			} catch (e) {
+				DebugLogger.warn('AssetMover', 'onAfterMove hook failed', { targetPath, error: String(e) });
+			}
+		}
+
 		return { newVaultPath: targetPath, movedFromVaultPath: fromPath };
+	}
+
+	/**
+	 * Convert a vault path inside the assets folder back to a repo-root-relative
+	 * path. Replaces the vault-prefix with the repo-relative assets folder.
+	 */
+	private targetToRepoRel(vaultPath: string): string {
+		const vaultPrefix = this.assetsFolderVault + '/';
+		if (vaultPath.startsWith(vaultPrefix)) {
+			const remainder = vaultPath.slice(vaultPrefix.length);
+			return this.assetsFolderRel ? `${this.assetsFolderRel}/${remainder}` : remainder;
+		}
+		return vaultPath;
 	}
 
 	/**
@@ -158,13 +197,7 @@ export class AssetMover {
 
 	/** Repo-relative POSIX paths of every successful move this run. */
 	movedRepoRelPaths(): string[] {
-		return this.moves.map((m) => this.vaultToRepo(m.to));
-	}
-
-	private vaultToRepo(vaultPath: string): string {
-		if (!this.repoVaultPath) return vaultPath;
-		const prefix = this.repoVaultPath + '/';
-		return vaultPath.startsWith(prefix) ? vaultPath.slice(prefix.length) : vaultPath;
+		return this.moves.map((m) => this.targetToRepoRel(m.to));
 	}
 }
 
